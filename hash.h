@@ -77,6 +77,12 @@ struct SHA256Hasher : Hasher<32u>
   SHA256Hasher()
   : Hasher<32u>(EVP_sha256)
   {}
+
+  static SHA256Hasher const &instance()
+  {
+    static SHA256Hasher hasher;
+    return hasher;
+  }
 };
 
 } // end namespace hash
