@@ -1,5 +1,6 @@
 #include <array>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <sstream>
@@ -11,18 +12,19 @@
 namespace bm
 {
 
+using Clock = std::chrono::high_resolution_clock;
+
 template<typename T, typename HASHER = SHA256Hasher>
 class Block
 {
-public:
-  using timestamp_t = std::chrono::high_resolution_clock::time_point;
-  using hash_t = std::array<uint8_t, 32>;
 
-  explicit Block(T const &data,
-                 timestamp_t timestamp,
-                 Block const *last = nullptr)
+public:
+  using timestamp_t = Clock::time_point;
+  using hash_t = std::array<std::byte, 32>;
+
+  explicit Block(T const &data, Block const *last = nullptr)
   : m_data(data),
-    m_timestamp(timestamp),
+    m_timestamp(Clock::now()),
     m_index(last ? last->m_index + 1 : 0),
     m_prev_hash(last ? last->m_hash : std::nullopt),
     m_hash(hash())
@@ -35,8 +37,8 @@ public:
     ss << m_data << m_timestamp << m_index;
 
     if (m_prev_hash) {
-      for (auto byte : *m_prev_hash)
-        ss << byte;
+      for (auto prev_hash_byte : *m_prev_hash)
+        ss << std::to_integer<int>(prev_hash_byte);
     }
 
     return HASHER::instance().hash(ss.str());

@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cstddef>
 #include <iterator>
 #include <new>
 #include <stdexcept>
@@ -33,9 +34,9 @@ public:
     EVP_MD_CTX_free(m_mdctx);
   }
 
-  std::array<uint8_t, DIGEST_LEN> hash(std::string const &msg) const
+  std::array<std::byte, DIGEST_LEN> hash(std::string const &msg) const
   {
-    uint8_t digest_c[DIGEST_LEN];
+    std::byte digest_c[DIGEST_LEN];
     unsigned digest_c_len = 0;
 
     if (EVP_DigestInit_ex(m_mdctx, m_md(), nullptr) != 1)
@@ -49,7 +50,7 @@ public:
 
     EVP_MD_CTX_reset(m_mdctx);
 
-    std::array<uint8_t, DIGEST_LEN> digest;
+    std::array<std::byte, DIGEST_LEN> digest;
     std::copy(std::begin(digest_c), std::end(digest_c), digest.begin());
 
     return digest;
