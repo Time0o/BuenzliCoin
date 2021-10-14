@@ -1,10 +1,11 @@
-cmake_minimum_required(VERSION 3.6)
+cmake_minimum_required(VERSION 3.9)
 
 project(BuenzliMuenzli LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 
 find_package(OpenSSL REQUIRED)
+find_package(cpprestsdk REQUIRED)
 
 add_executable(main main.cc)
-target_link_libraries(main OpenSSL::SSL)
+target_link_libraries(main OpenSSL::SSL cpprestsdk::cpprest)
