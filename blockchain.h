@@ -57,7 +57,35 @@ public:
     return j;
   }
 
+  static Block from_json(web::json::value j)
+  {
+    auto data { j["data"].as_string() };
+    auto timestamp { timestamp_from_string(j["timestamp"].as_string()) };
+
+    auto index { j["index"].as_number().to_uint64() };
+
+    auto hash { j["hash"] };
+
+    std::optional<typename HASHER::digest> hash_prev;
+    if (j.has_field("hash_prev"))
+        hash_prev = hash_from_string(j["hash_prev"]);
+
+    return Block { data, timestamp, index, hash, hash_prev };
+  }
+
 private:
+  explicit Block(std::string const &data,
+                 Clock::time_point const &timestamp,
+                 uint64_t index,
+                 HASHER::digest const &hash,
+                 std::optional<typename HASHER::digest> const &hash_prev)
+  : m_data(data),
+    m_timestamp(timestamp),
+    m_index(index),
+    m_hash(hash),
+    m_hash_prev(hash_prev)
+  {}
+
   HASHER::digest hash() const
   {
     std::stringstream ss;
@@ -77,6 +105,14 @@ private:
     return fmt::format("{:%Y-%m-%d %X}", timestamp);
   }
 
+  static Clock::time_point timestamp_from_string(std::string const &str)
+  {
+    std::tm tm {};
+    std::get_time(&tm, "%Y-%m-%d %X");
+
+    return Clock::from_time_t(std::mktime(&tm));
+  }
+
   static std::string hash_to_string(HASHER::digest const &hash)
   {
     std::stringstream ss;
@@ -87,6 +123,31 @@ private:
       ss << std::setw(2) << static_cast<int>(byte);
 
     return ss.str();
+  }
+
+  static HASHER::digest hash_from_string(std::string const &str)
+  {
+    if (str.size() != HASHER::digest::size() * 2)
+      throw std::invalid_argument("invalid hash string");
+
+    auto char_to_nibble = [](char c){
+      if (c >= '0' && c <= '9')
+        return c - '0';
+
+      if (c >= 'a' && c <= 'f')
+        return c - 'a' + 10;
+
+      if (c >= 'A' && c <= 'F')
+        return c - 'A' + 10;
+
+      throw std::invalid_argument("invalid hash string");
+    };
+
+    typename HASHER::digest d;
+    for (std::size_t i = 0; i < str.size(); ++i)
+      d[i] = char_to_nibble(str[i]) << 4 | char_to_nibble(str[i + 1]);
+
+    return d;
   }
 
   std::string m_data;
@@ -102,6 +163,8 @@ template<typename HASHER = SHA256Hasher>
 class Blockchain
 {
 public:
+  Blockchain() = default;
+
   auto operator<=>(Blockchain const &other)
   {
     return m_blocks.size() <=> other.m_blocks.size();
@@ -155,7 +218,20 @@ public:
     return j;
   }
 
+  static Blockchain from_json(web::json::value j)
+  {
+    std::vector<Block<HASHER>> blocks;
+    for (auto const &j_block : j.as_array())
+      blocks.push_back(Block<HASHER>::from_json(j_block));
+
+    return Blockchain { blocks };
+  }
+
 private:
+  explicit Blockchain(std::vector<Block<HASHER>> const &blocks)
+  : m_blocks(blocks)
+  {}
+
   static bool valid_genesis_block(Block<HASHER> const &block)
   {
     return block.valid() &&

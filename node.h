@@ -32,9 +32,6 @@ public:
     create_listener("add-block", http::methods::POST,
                     [this](http::http_request request)
                     { handle_add_block(request); });
-
-    m_blockchain.append("hello"); // XXX
-    m_blockchain.append("world"); // XXX
   }
 
   ~Node()
@@ -76,9 +73,32 @@ private:
     request.reply(http::status_codes::OK, answer);
   }
 
-  static void handle_add_block(http::http_request request)
+  void handle_add_block(http::http_request request)
   {
-    std::cout << "TODO: add block" << std::endl; // XXX
+    auto status { http::status_codes::OK };
+    web::json::value answer;
+
+    auto action = [&](pplx::task<web::json::value> const &task)
+    {
+      std::string data;
+
+      try {
+        auto j { task.get() };
+        data = j["data"].as_string();
+
+        m_blockchain.append(data);
+
+      } catch (std::exception const &e) {
+        status = http::status_codes::BadRequest;
+        answer["message"] = web::json::value(e.what());
+      }
+    };
+
+    request.extract_json()
+           .then(action)
+           .wait();
+
+    request.reply(status, answer);
   }
 
   Blockchain<> m_blockchain;
