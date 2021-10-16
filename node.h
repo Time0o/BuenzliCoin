@@ -8,6 +8,7 @@
 #include <utility>
 
 #include <cpprest/http_listener.h>
+#include <cpprest/json.h>
 
 #include "blockchain.h"
 
@@ -24,8 +25,16 @@ public:
   explicit Node(std::string const &host) // XXX specify port
   : m_host(host)
   {
-    create_listener("list-blocks", http::methods::GET, handle_list_blocks);
-    create_listener("add-block", http::methods::POST, handle_add_block);
+    create_listener("list-blocks", http::methods::GET,
+                    [this](http::http_request request)
+                    { handle_list_blocks(request); });
+
+    create_listener("add-block", http::methods::POST,
+                    [this](http::http_request request)
+                    { handle_add_block(request); });
+
+    m_blockchain.append("hello"); // XXX
+    m_blockchain.append("world"); // XXX
   }
 
   ~Node()
@@ -60,9 +69,11 @@ private:
     m_listeners.emplace(uri, std::move(listener));
   }
 
-  static void handle_list_blocks(http::http_request request)
+  void handle_list_blocks(http::http_request request)
   {
-    std::cout << "TODO: list blocks" << std::endl; // XXX
+    auto answer { m_blockchain.to_json() };
+
+    request.reply(http::status_codes::OK, answer);
   }
 
   static void handle_add_block(http::http_request request)
@@ -70,7 +81,7 @@ private:
     std::cout << "TODO: add block" << std::endl; // XXX
   }
 
-  Blockchain<std::string> m_blockchain;
+  Blockchain<> m_blockchain;
 
   std::string m_host;
   std::unordered_map<std::string, listener::http_listener> m_listeners;

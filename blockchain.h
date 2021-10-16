@@ -4,10 +4,14 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <iomanip>
 #include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
+
+#include <cpprest/json.h>
+#include <fmt/chrono.h>
 
 #include "hash.h"
 
@@ -16,48 +20,85 @@ namespace bm
 
 using Clock = std::chrono::high_resolution_clock;
 
-template<typename T, typename HASHER = SHA256Hasher>
+template<typename HASHER = SHA256Hasher>
 class Block
 {
-
 public:
-  using timestamp_t = Clock::time_point;
-  using hash_t = std::array<std::byte, 32>;
-
-  explicit Block(T const &data, Block const *last = nullptr)
+  explicit Block(std::string const &data,
+                 std::optional<Block> const &last = std::nullopt)
   : m_data(data),
     m_timestamp(Clock::now()),
     m_index(last ? last->m_index + 1 : 0),
-    m_prev_hash(last ? last->m_hash : std::nullopt),
     m_hash(hash())
-  {}
+  {
+    if (last)
+      m_hash_prev = last->m_hash;
+  }
 
-  hash_t hash() const
+  bool valid() const
+  {
+    return m_hash == hash();
+  }
+
+  web::json::value to_json() const
+  {
+    web::json::value j;
+
+    j["data"] = web::json::value(m_data);
+    j["timestamp"] = web::json::value(timestamp_to_string(m_timestamp));
+
+    j["index"] = web::json::value(m_index);
+
+    j["hash"] = web::json::value(hash_to_string(m_hash));
+
+    if (m_hash_prev)
+      j["hash_prev"] = web::json::value(hash_to_string(*m_hash_prev));
+
+    return j;
+  }
+
+private:
+  HASHER::digest hash() const
   {
     std::stringstream ss;
 
-    ss << m_data << m_timestamp << m_index;
+    ss << m_data << timestamp_to_string(m_timestamp) << m_index;
 
-    if (m_prev_hash) {
-      for (auto prev_hash_byte : *m_prev_hash)
-        ss << std::to_integer<int>(prev_hash_byte);
+    if (m_hash_prev) {
+      for (auto byte : *m_hash_prev)
+        ss << byte;
     }
 
     return HASHER::instance().hash(ss.str());
   }
 
-private:
+  static std::string timestamp_to_string(Clock::time_point const &timestamp)
+  {
+    return fmt::format("{:%Y-%m-%d %X}", timestamp);
+  }
 
-  T m_data;
-  timestamp_t m_timestamp;
+  static std::string hash_to_string(HASHER::digest const &hash)
+  {
+    std::stringstream ss;
 
-  std::size_t m_index;
+    ss << std::hex << std::setfill('0');
 
-  std::optional<hash_t> m_prev_hash;
-  hash_t m_hash;
+    for (auto const &byte : hash)
+      ss << std::setw(2) << static_cast<int>(byte);
+
+    return ss.str();
+  }
+
+  std::string m_data;
+  Clock::time_point m_timestamp;
+
+  uint64_t m_index;
+
+  HASHER::digest m_hash;
+  std::optional<typename HASHER::digest> m_hash_prev;
 };
 
-template<typename T, typename HASHER = SHA256Hasher>
+template<typename HASHER = SHA256Hasher>
 class Blockchain
 {
 public:
@@ -66,7 +107,31 @@ public:
     return m_blocks.size() <=> other.m_blocks.size();
   }
 
-  void append(Block<T, HASHER> const &block)
+  bool valid() const
+  {
+    if (m_blocks.empty())
+      return false;
+
+    if (!valid_genesis_block(m_blocks[0]))
+      return false;
+
+    for (uint64_t i = 1; i < m_blocks.size(); ++i) {
+      if (!valid_next_block(m_blocks[i], m_blocks[i - 1]))
+        return false;
+    }
+
+    return true;
+  }
+
+  void append(std::string const &data)
+  {
+    if (m_blocks.empty())
+      m_blocks.emplace_back(data);
+    else
+      m_blocks.emplace_back(data, m_blocks.back());
+  }
+
+  void append(Block<HASHER> const &block)
   {
     if (m_blocks.empty()) {
       if (!valid_genesis_block(block))
@@ -80,46 +145,40 @@ public:
     m_blocks.push_back(block);
   }
 
-  bool valid() const
+  web::json::value to_json() const
   {
-    if (m_blocks.empty())
-      return false;
+    auto j { web::json::value::array(m_blocks.size()) };
 
-    if (!valid_genesis_block(m_blocks[0]))
-      return false;
+    for (uint64_t i = 0; i < m_blocks.size(); ++i)
+      j[i] = m_blocks[i].to_json();
 
-    for (std::size_t i = 1; i < m_blocks.size(); ++i) {
-      if (!valid_next_block(m_blocks[i], m_blocks[i - 1]))
-        return false;
-    }
-
-    return true;
+    return j;
   }
 
 private:
-  static bool valid_genesis_block(Block<T, HASHER> const &block)
+  static bool valid_genesis_block(Block<HASHER> const &block)
   {
-    return block.m_index == 0 &&
-           !block.m_prev_hash &&
-           block.m_hash = block.hash();
+    return block.valid() &&
+           block.m_index == 0 &&
+           !block.m_hash_prev;
   }
 
-  static bool valid_next_block(Block<T, HASHER> const &block,
-                               Block<T, HASHER> const &prev_block)
+  static bool valid_next_block(Block<HASHER> const &block,
+                               Block<HASHER> const &prev_block)
   {
+    if (!block.valid())
+      return false;
+
     if (block.m_index != prev_block.m_index + 1)
       return false;
 
-    if (!block.m_prev_hash || (*block.m_prev_hash != prev_block.m_hash))
-      return false;
-
-    if (block.m_hash != block.hash())
+    if (!block.m_hash_prev || (*block.m_hash_prev != prev_block.m_hash))
       return false;
 
     return true;
   }
 
-  std::vector<Block<T, HASHER>> m_blocks;
+  std::vector<Block<HASHER>> m_blocks;
 };
 
 } // end namespace bm

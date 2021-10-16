@@ -18,6 +18,9 @@ namespace bm
 template<unsigned DIGEST_LEN>
 class Hasher
 {
+public:
+  using digest = std::array<unsigned char, DIGEST_LEN>;
+
 protected:
   Hasher(EVP_MD const *(*md)())
   : m_mdctx(EVP_MD_CTX_new()),
@@ -36,10 +39,10 @@ public:
     EVP_MD_CTX_free(m_mdctx);
   }
 
-  std::array<std::byte, DIGEST_LEN> hash(std::string const &msg) const
+  digest hash(std::string const &msg) const
   {
-    std::byte digest_c[DIGEST_LEN];
-    unsigned digest_c_len = 0;
+    unsigned char d_c[DIGEST_LEN];
+    unsigned d_c_len = 0;
 
     if (EVP_DigestInit_ex(m_mdctx, m_md(), nullptr) != 1)
     	goto error;
@@ -47,15 +50,15 @@ public:
     if (EVP_DigestUpdate(m_mdctx, msg.data(), msg.size()) != 1)
     	goto error;
 
-    if(EVP_DigestFinal_ex(m_mdctx, digest_c, &digest_c_len) != 1)
+    if(EVP_DigestFinal_ex(m_mdctx, d_c, &d_c_len) != 1)
     	goto error;
 
     EVP_MD_CTX_reset(m_mdctx);
 
-    std::array<std::byte, DIGEST_LEN> digest;
-    std::copy(std::begin(digest_c), std::end(digest_c), digest.begin());
+    digest d;
+    std::copy(std::begin(d_c), std::end(d_c), d.begin());
 
-    return digest;
+    return d;
 
   error:
     EVP_MD_CTX_reset(m_mdctx);
