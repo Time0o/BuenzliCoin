@@ -1,27 +1,29 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
 #include <iostream>
 #include <string>
 #include <thread>
 #include <unordered_map>
 #include <utility>
 
-#include <boost/beast/core.hpp>
-#include <boost/beast/http.hpp>
-#include <boost/beast/version.hpp>
-
 #include "blockchain.h"
+#include "http_server.h"
 
 namespace bm
 {
 
 class Node
 {
-#if 0
 public:
-  explicit Node(std::string const &host) // XXX specify port
-  : m_host(host)
+  explicit Node(std::string const &addr, uint16_t port)
+  {
+    HTTPServer server { addr, port };
+    server.run(); // XXX
+  }
+
+#if 0
   {
     create_listener("list-blocks", http::methods::GET,
                     [this](http::http_request request)
