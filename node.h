@@ -7,20 +7,18 @@
 #include <unordered_map>
 #include <utility>
 
-#include <cpprest/http_listener.h>
-#include <cpprest/json.h>
+#include <boost/beast/core.hpp>
+#include <boost/beast/http.hpp>
+#include <boost/beast/version.hpp>
 
 #include "blockchain.h"
-
-// XXX source file
-namespace http = web::http;
-namespace listener = web::http::experimental::listener;
 
 namespace bm
 {
 
 class Node
 {
+#if 0
 public:
   explicit Node(std::string const &host) // XXX specify port
   : m_host(host)
@@ -105,6 +103,7 @@ private:
 
   std::string m_host;
   std::unordered_map<std::string, listener::http_listener> m_listeners;
+#endif
 };
 
 } // end namespace bm

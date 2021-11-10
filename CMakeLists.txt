@@ -5,8 +5,8 @@ project(BuenzliMuenzli LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 
 find_package(OpenSSL REQUIRED)
-find_package(cpprestsdk REQUIRED)
+find_package(Boost 1.67.0 REQUIRED COMPONENTS)
 find_package(fmt REQUIRED)
 
 add_executable(main main.cc)
-target_link_libraries(main OpenSSL::SSL cpprestsdk::cpprest fmt::fmt)
+target_link_libraries(main OpenSSL::SSL Boost::boost fmt::fmt)

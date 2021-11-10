@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 
-#include <cpprest/json.h>
 #include <fmt/chrono.h>
 
 #include "hash.h"
@@ -40,6 +39,7 @@ public:
     return m_hash == hash();
   }
 
+#if 0
   web::json::value to_json() const
   {
     web::json::value j;
@@ -72,6 +72,7 @@ public:
 
     return Block { data, timestamp, index, hash, hash_prev };
   }
+#endif
 
 private:
   explicit Block(std::string const &data,
@@ -208,6 +209,7 @@ public:
     m_blocks.push_back(block);
   }
 
+#if 0
   web::json::value to_json() const
   {
     auto j { web::json::value::array(m_blocks.size()) };
@@ -226,6 +228,7 @@ public:
 
     return Blockchain { blocks };
   }
+#endif
 
 private:
   explicit Blockchain(std::vector<Block<HASHER>> const &blocks)
