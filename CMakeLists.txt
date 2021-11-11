@@ -9,5 +9,5 @@ find_package(Boost 1.67.0 REQUIRED COMPONENTS)
 find_package(Threads REQUIRED)
 find_package(fmt REQUIRED)
 
-add_executable(main main.cc)
+add_executable(main main.cc http_server.cc)
 target_link_libraries(main OpenSSL::SSL Boost::boost Threads::Threads fmt::fmt)
