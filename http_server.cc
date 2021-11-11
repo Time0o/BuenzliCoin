@@ -1,8 +1,3 @@
-#include <boost/asio.hpp>
-#include <boost/beast/core.hpp>
-#include <boost/beast/http.hpp>
-#include <boost/beast/version.hpp>
-
 #include <chrono>
 #include <cstdint>
 #include <iostream>
@@ -10,10 +5,17 @@
 #include <string>
 #include <utility>
 
+#include <boost/asio.hpp>
+#include <boost/beast/core.hpp>
+#include <boost/beast/http.hpp>
+#include <boost/beast/version.hpp>
+#include <nlohmann/json.hpp>
+
 #include "http_server.h"
 
 using namespace boost::asio;
 using namespace boost::beast;
+using namespace nlohmann;
 
 namespace {
 
@@ -34,14 +36,14 @@ public:
 
     http::async_read(
       m_socket,
-      m_read_buffer,
+      m_buffer,
       m_request,
-      [](error_code ec, std::size_t)
+      [this_](error_code ec, std::size_t)
       {
         if (ec)
           std::cerr << ec.message() << std::endl;
         else
-          std::cout << "received request" << std::endl; // XXX
+          this_->handle_request();
       });
 
     m_socket_timer.async_wait(
@@ -55,10 +57,25 @@ public:
   }
 
 private:
+  void handle_request()
+  {
+    m_response.version(m_request.version());
+    m_response.keep_alive(false);
+
+    // XXX
+
+    // XXX Handle parse errors.
+    json j { m_request.body() };
+    std::cout << "received request: " << j << std::endl;
+
+    m_response.result(http::status::ok);
+  }
+
   ip::tcp::socket m_socket;
   steady_timer m_socket_timer;
-  flat_buffer m_read_buffer { BUFFER_SIZE };
-  http::request<http::dynamic_body> m_request;
+  flat_buffer m_buffer { BUFFER_SIZE };
+  http::request<http::string_body> m_request;
+  http::response<http::dynamic_body> m_response;
 };
 
 std::shared_ptr<HTTPConnection> make_connection(ip::tcp::socket &&socket)
