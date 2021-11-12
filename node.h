@@ -2,7 +2,6 @@
 
 #include <chrono>
 #include <cstdint>
-#include <iostream>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -18,94 +17,41 @@ class Node
 {
 public:
   explicit Node(std::string const &addr, uint16_t port)
+  : m_server { addr, port }
   {
-    HTTPServer server { addr, port };
-    server.run(); // XXX
-  }
+    m_server.support("/list-blocks",
+                     HTTPServer::method::get,
+                     [this](json const &data)
+                     { return handle_list_blocks(data); });
 
-#if 0
-  {
-    create_listener("list-blocks", http::methods::GET,
-                    [this](http::http_request request)
-                    { handle_list_blocks(request); });
+    m_server.support("/add-block",
+                     HTTPServer::method::post,
+                     [this](json const &data)
+                     { return handle_add_block(data); });
 
-    create_listener("add-block", http::methods::POST,
-                    [this](http::http_request request)
-                    { handle_add_block(request); });
-  }
-
-  ~Node()
-  {
-    for (auto &[_, listener] : m_listeners)
-      listener.close();
   }
 
   void run()
-  {
-    for (auto &[_, listener] : m_listeners)
-      listener.open();
-  }
-
-  static void block()
-  {
-    std::this_thread::sleep_until(
-      std::chrono::time_point<std::chrono::system_clock>::max());
-  }
+  { m_server.run(); }
 
 private:
-  template<typename FUNC>
-  void create_listener(std::string const &path,
-                       http::method const &method,
-                       FUNC &&handler)
-  {
-    auto uri { m_host + "/" + path };
-
-    listener::http_listener listener { uri };
-    listener.support(method, std::forward<FUNC>(handler));
-
-    m_listeners.emplace(uri, std::move(listener));
-  }
-
-  void handle_list_blocks(http::http_request request)
+  std::pair<HTTPServer::status, json> handle_list_blocks(json const &)
   {
     auto answer { m_blockchain.to_json() };
 
-    request.reply(http::status_codes::OK, answer);
+    return { HTTPServer::status::ok, answer };
   }
 
-  void handle_add_block(http::http_request request)
+  std::pair<HTTPServer::status, json> handle_add_block(json const &data)
   {
-    auto status { http::status_codes::OK };
-    web::json::value answer;
+    m_blockchain.append(data["data"].get<std::string>()); // XXX Handle parse errors.
 
-    auto action = [&](pplx::task<web::json::value> const &task)
-    {
-      std::string data;
-
-      try {
-        auto j { task.get() };
-        data = j["data"].as_string();
-
-        m_blockchain.append(data);
-
-      } catch (std::exception const &e) {
-        status = http::status_codes::BadRequest;
-        answer["message"] = web::json::value(e.what());
-      }
-    };
-
-    request.extract_json()
-           .then(action)
-           .wait();
-
-    request.reply(status, answer);
+    return { HTTPServer::status::ok, {} };
   }
 
   Blockchain<> m_blockchain;
 
-  std::string m_host;
-  std::unordered_map<std::string, listener::http_listener> m_listeners;
-#endif
+  HTTPServer m_server;
 };
 
 } // end namespace bm

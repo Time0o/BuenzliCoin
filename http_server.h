@@ -1,23 +1,48 @@
 #pragma once
 
-#include <boost/asio.hpp>
-#include <boost/beast/http.hpp>
-
+#include <functional>
+#include <mutex>
 #include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include <boost/beast/http.hpp>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 namespace bm
 {
 
 class HTTPServer
 {
+  friend class HTTPConnection;
+
 public:
+  using method = boost::beast::http::verb;
+  using status = boost::beast::http::status;
+  using handler = std::function<std::pair<status, json>(json const &)>;
+  using handlers = std::vector<std::pair<method, handler>>;
+
   HTTPServer(std::string const &addr, uint16_t port);
 
-  void run();
+  void support(std::string const &target,
+               method const &method,
+               handler handler);
+
+  void run() const;
 
 private:
-  boost::asio::ip::address m_addr;
+  std::pair<status, json> handle(std::string const &target,
+                                 method const &method,
+                                 json const &data) const;
+
+  std::string m_addr;
   uint16_t m_port;
+
+  std::unordered_map<std::string, handlers> m_handlers;
+  mutable std::mutex m_handlers_mtx;
 };
 
 } // end namespace bm

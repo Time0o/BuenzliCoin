@@ -13,6 +13,7 @@
 #include <fmt/chrono.h>
 
 #include "hash.h"
+#include "http_server.h"
 
 namespace bm
 {
@@ -39,40 +40,38 @@ public:
     return m_hash == hash();
   }
 
-#if 0
-  web::json::value to_json() const
+  json to_json() const
   {
-    web::json::value j;
+    json j;
 
-    j["data"] = web::json::value(m_data);
-    j["timestamp"] = web::json::value(timestamp_to_string(m_timestamp));
+    j["data"] = m_data;
+    j["timestamp"] = timestamp_to_string(m_timestamp);
 
-    j["index"] = web::json::value(m_index);
+    j["index"] = m_index;
 
-    j["hash"] = web::json::value(hash_to_string(m_hash));
+    j["hash"] = hash_to_string(m_hash);
 
     if (m_hash_prev)
-      j["hash_prev"] = web::json::value(hash_to_string(*m_hash_prev));
+      j["hash_prev"] = hash_to_string(*m_hash_prev);
 
     return j;
   }
 
-  static Block from_json(web::json::value j)
+  static Block from_json(json const &j)
   {
-    auto data { j["data"].as_string() };
-    auto timestamp { timestamp_from_string(j["timestamp"].as_string()) };
+    auto data { j["data"].get<std::string>() };
+    auto timestamp { timestamp_from_string(j["timestamp"].get<std::string>()) };
 
-    auto index { j["index"].as_number().to_uint64() };
+    auto index { j["index"].get<uint64_t>() };
 
     auto hash { j["hash"] };
 
     std::optional<typename HASHER::digest> hash_prev;
-    if (j.has_field("hash_prev"))
+    if (j.count("hash_prev"))
         hash_prev = hash_from_string(j["hash_prev"]);
 
     return Block { data, timestamp, index, hash, hash_prev };
   }
-#endif
 
 private:
   explicit Block(std::string const &data,
@@ -209,26 +208,24 @@ public:
     m_blocks.push_back(block);
   }
 
-#if 0
-  web::json::value to_json() const
+  json to_json() const
   {
-    auto j { web::json::value::array(m_blocks.size()) };
+    json j;
 
     for (uint64_t i = 0; i < m_blocks.size(); ++i)
-      j[i] = m_blocks[i].to_json();
+      j.push_back(m_blocks[i].to_json());
 
     return j;
   }
 
-  static Blockchain from_json(web::json::value j)
+  static Blockchain from_json(json const &j)
   {
     std::vector<Block<HASHER>> blocks;
-    for (auto const &j_block : j.as_array())
+    for (auto const &j_block : j)
       blocks.push_back(Block<HASHER>::from_json(j_block));
 
     return Blockchain { blocks };
   }
-#endif
 
 private:
   explicit Blockchain(std::vector<Block<HASHER>> const &blocks)
