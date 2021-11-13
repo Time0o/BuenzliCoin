@@ -21,6 +21,12 @@ public:
 
   WebSocketServer(std::string const &addr, uint16_t port);
 
+  std::string addr() const
+  { return m_addr; }
+
+  uint16_t port() const
+  { return m_port; }
+
   void support(std::string const &target,
                handler handler);
 

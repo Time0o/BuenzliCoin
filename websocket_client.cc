@@ -34,7 +34,9 @@ struct WebSocketConnection
 };
 
 WebSocketClient::WebSocketClient(std::string const &addr, uint16_t port)
-: m_connection { std::make_unique<WebSocketConnection>(addr, port) }
+: m_addr { addr },
+  m_port { port },
+  m_connection { std::make_unique<WebSocketConnection>(addr, port) }
 {}
 
 WebSocketClient::~WebSocketClient()
