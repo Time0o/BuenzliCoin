@@ -10,7 +10,12 @@ find_package(Threads REQUIRED)
 find_package(fmt REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
-add_executable(main main.cc http_server.cc)
+add_executable(main
+  main.cc
+  http_server.cc
+  websocket_client.cc
+  websocket_server.cc)
+
 target_link_libraries(main
   Boost::boost
   OpenSSL::SSL

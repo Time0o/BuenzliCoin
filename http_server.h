@@ -8,9 +8,8 @@
 #include <vector>
 
 #include <boost/beast/http.hpp>
-#include <nlohmann/json.hpp>
 
-using json = nlohmann::json;
+#include "json.h"
 
 namespace bm
 {

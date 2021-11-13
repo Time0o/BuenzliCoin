@@ -12,6 +12,7 @@
 #include <boost/beast/version.hpp>
 
 #include "http_server.h"
+#include "json.h"
 
 using namespace boost::asio;
 using namespace boost::beast;
