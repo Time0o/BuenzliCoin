@@ -21,8 +21,8 @@ public:
   {
     m_server.support("/list-blocks",
                      HTTPServer::method::get,
-                     [this](json const &data)
-                     { return handle_list_blocks(data); });
+                     [this](json const &)
+                     { return handle_list_blocks(); });
 
     m_server.support("/add-block",
                      HTTPServer::method::post,
@@ -35,7 +35,7 @@ public:
   { m_server.run(); }
 
 private:
-  std::pair<HTTPServer::status, json> handle_list_blocks(json const &)
+  std::pair<HTTPServer::status, json> handle_list_blocks() const
   {
     auto answer = m_blockchain.to_json();
 
