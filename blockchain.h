@@ -210,7 +210,7 @@ public:
 
   json to_json() const
   {
-    json j;
+    json j = json::array();
 
     for (uint64_t i = 0; i < m_blocks.size(); ++i)
       j.push_back(m_blocks[i].to_json());

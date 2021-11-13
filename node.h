@@ -37,7 +37,7 @@ public:
 private:
   std::pair<HTTPServer::status, json> handle_list_blocks(json const &)
   {
-    auto answer { m_blockchain.to_json() };
+    auto answer = m_blockchain.to_json();
 
     return { HTTPServer::status::ok, answer };
   }
