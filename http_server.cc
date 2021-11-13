@@ -81,7 +81,7 @@ private:
       case http::status::bad_request:
         m_response.set(http::field::content_type, "text/plain");
         ostream(m_response.body())
-          << "Invalid request method'" << std::string(m_request.method_string()) << "'";
+          << "Invalid request method '" << std::string(m_request.method_string()) << "'";
         break;
       case http::status::ok:
         m_response.set(http::field::content_type, "application/json");
