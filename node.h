@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <iostream> // XXX
 #include <list>
 #include <string>
 #include <thread>
@@ -42,7 +43,13 @@ public:
 private:
   void websocket_setup()
   {
-    // XXX
+    m_websocket_server.support("request-latest-block",
+                               [this](json const &)
+                               { return handle_request_latest_block(); });
+
+    m_websocket_server.support("receive-latest-block",
+                               [this](json const &data)
+                               { return handle_receive_latest_block(data); });
   }
 
   void http_setup()
@@ -102,7 +109,39 @@ private:
     // XXX Handle connection failure
     m_websocket_peers.emplace_back(addr, port);
 
+    request_latest_block(m_websocket_peers.back());
+
     return { HTTPServer::status::ok, {} };
+  }
+
+  void request_latest_block(WebSocketClient const &peer)
+  {
+    json request;
+    request["target"] = "get-latest-block";
+
+    peer.send_async(request,
+                    [this](json const &data)
+                    { handle_receive_latest_block(data); });
+  }
+
+  std::pair<bool, json> handle_request_latest_block() const
+  {
+    json answer;
+    answer["status"] = "ok";
+    // XXX Handle empty blockchain.
+    answer["data"] = m_blockchain.begin()->to_json();
+
+    return { true, answer };
+  }
+
+  std::pair<bool, json> handle_receive_latest_block(json const &data) const
+  {
+    // XXX Handle empty response.
+
+    // XXX
+    std::cout << "Received block: " << data << std::endl;
+
+    return { true, {} };
   }
 
   Blockchain<> m_blockchain;

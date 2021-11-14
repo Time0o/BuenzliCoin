@@ -163,12 +163,22 @@ template<typename HASHER = SHA256Hasher>
 class Blockchain
 {
 public:
+  using value_type = Block<HASHER>;
+  using const_iterator = std::vector<Block<HASHER>>::const_iterator;
+
   Blockchain() = default;
 
   auto operator<=>(Blockchain const &other)
-  {
-    return m_blocks.size() <=> other.m_blocks.size();
-  }
+  { return m_blocks.size() <=> other.m_blocks.size(); }
+
+  const_iterator begin() const
+  { return m_blocks.begin(); }
+
+  const_iterator end() const
+  { return m_blocks.end(); }
+
+  bool empty() const
+  { return m_blocks.empty(); }
 
   bool valid() const
   {
