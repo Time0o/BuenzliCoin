@@ -10,10 +10,10 @@
 #include <utility>
 
 #include "blockchain.h"
-#include "http_server.h"
 #include "json.h"
-#include "websocket_client.h"
-#include "websocket_server.h"
+#include "web/http_server.h"
+#include "web/websocket_client.h"
+#include "web/websocket_server.h"
 
 namespace bm
 {

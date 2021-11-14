@@ -10,7 +10,7 @@
 #include <boost/beast/websocket.hpp>
 
 #include "json.h"
-#include "websocket_server.h"
+#include "web/websocket_server.h"
 
 using namespace boost::asio;
 using namespace boost::beast;

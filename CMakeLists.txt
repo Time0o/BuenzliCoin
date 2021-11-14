@@ -10,13 +10,16 @@ find_package(Threads REQUIRED)
 find_package(fmt REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
-add_executable(main
-  main.cc
-  http_server.cc
-  websocket_client.cc
-  websocket_server.cc)
+add_executable(node
+  src/node.cc
+  src/web/http_server.cc
+  src/web/websocket_client.cc
+  src/web/websocket_server.cc)
 
-target_link_libraries(main
+target_include_directories(node PRIVATE
+  include)
+
+target_link_libraries(node PRIVATE
   Boost::boost
   OpenSSL::SSL
   Threads::Threads
