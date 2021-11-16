@@ -4,7 +4,7 @@ project(BuenzliMuenzli LANGUAGES CXX)
 
 include(CTest)
 
-find_package(Boost 1.67.0 REQUIRED COMPONENTS)
+find_package(Boost 1.67.0 REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
 find_package(fmt REQUIRED)
