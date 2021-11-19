@@ -23,6 +23,8 @@ using Clock = std::chrono::high_resolution_clock;
 template<typename HASHER = SHA256Hasher>
 class Block
 {
+  using digest = typename HASHER::digest;
+
 public:
   explicit Block(std::string const &data,
                  std::optional<Block> const &last = std::nullopt)
@@ -66,7 +68,7 @@ public:
 
     auto hash { j["hash"] };
 
-    std::optional<typename HASHER::digest> hash_prev;
+    std::optional<digest> hash_prev;
     if (j.count("hash_prev"))
         hash_prev = hash_from_string(j["hash_prev"]);
 
@@ -77,8 +79,8 @@ private:
   explicit Block(std::string const &data,
                  Clock::time_point const &timestamp,
                  uint64_t index,
-                 HASHER::digest const &hash,
-                 std::optional<typename HASHER::digest> const &hash_prev)
+                 digest const &hash,
+                 std::optional<digest> const &hash_prev)
   : m_data(data),
     m_timestamp(timestamp),
     m_index(index),
@@ -86,7 +88,7 @@ private:
     m_hash_prev(hash_prev)
   {}
 
-  HASHER::digest hash() const
+  digest hash() const
   {
     std::stringstream ss;
 
@@ -113,7 +115,7 @@ private:
     return Clock::from_time_t(std::mktime(&tm));
   }
 
-  static std::string hash_to_string(HASHER::digest const &hash)
+  static std::string hash_to_string(digest const &hash)
   {
     std::stringstream ss;
 
@@ -125,7 +127,7 @@ private:
     return ss.str();
   }
 
-  static HASHER::digest hash_from_string(std::string const &str)
+  static digest hash_from_string(std::string const &str)
   {
     if (str.size() != HASHER::digest::size() * 2)
       throw std::invalid_argument("invalid hash string");
@@ -143,7 +145,7 @@ private:
       throw std::invalid_argument("invalid hash string");
     };
 
-    typename HASHER::digest d;
+    digest d;
     for (std::size_t i = 0; i < str.size(); ++i)
       d[i] = char_to_nibble(str[i]) << 4 | char_to_nibble(str[i + 1]);
 
@@ -155,8 +157,8 @@ private:
 
   uint64_t m_index;
 
-  HASHER::digest m_hash;
-  std::optional<typename HASHER::digest> m_hash_prev;
+  digest m_hash;
+  std::optional<digest> m_hash_prev;
 };
 
 template<typename HASHER = SHA256Hasher>
@@ -164,7 +166,7 @@ class Blockchain
 {
 public:
   using value_type = Block<HASHER>;
-  using const_iterator = std::vector<Block<HASHER>>::const_iterator;
+  using const_iterator = typename std::vector<Block<HASHER>>::const_iterator;
 
   Blockchain() = default;
 
