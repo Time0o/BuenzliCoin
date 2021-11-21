@@ -43,8 +43,6 @@ public:
 private:
   void websocket_setup()
   {
-// XXX
-#if 0
     m_websocket_server.support("request-latest-block",
                                [this](json const &)
                                { return handle_request_latest_block(); });
@@ -52,7 +50,6 @@ private:
     m_websocket_server.support("receive-latest-block",
                                [this](json const &data)
                                { return handle_receive_latest_block(data); });
-#endif
   }
 
   void http_setup()
@@ -112,22 +109,22 @@ private:
     // XXX Handle connection failure
     m_websocket_peers.emplace_back(addr, port);
 
-#if 0
     request_latest_block(m_websocket_peers.back());
-#endif
 
     return { HTTPServer::status::ok, {} };
   }
 
-#if 0
   void request_latest_block(WebSocketClient const &peer)
   {
     json request;
     request["target"] = "get-latest-block";
 
     peer.send_async(request,
-                    [this](json const &data)
-                    { handle_receive_latest_block(data); });
+                    [this](bool success, std::string const &answer)
+                    {
+                      // XXX Handle failure.
+                      return handle_receive_latest_block(json::parse(answer));
+                    });
   }
 
   std::pair<bool, json> handle_request_latest_block() const
@@ -149,7 +146,6 @@ private:
 
     return { true, {} };
   }
-#endif
 
   Blockchain<> m_blockchain;
 
