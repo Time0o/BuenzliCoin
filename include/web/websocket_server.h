@@ -14,29 +14,29 @@ namespace bm
 
 class WebSocketServer
 {
-  friend class WebSocketSession;
+  class Connection;
+
+  static constexpr char const *SERVER = "BuenzliCoin/0.0.1 WebSocketServer";
 
 public:
-  using handler = std::function<std::pair<bool, json>(json const &)>;
+  using handler = std::function<json(json const &)>;
 
-  WebSocketServer(std::string const &addr, uint16_t port);
+  WebSocketServer(std::string const &host, uint16_t port);
 
-  std::string addr() const
-  { return m_addr; }
+  std::string host() const
+  { return m_host; }
 
   uint16_t port() const
   { return m_port; }
 
-  void support(std::string const &target,
-               handler handler);
+  void support(std::string const &target, handler handler);
 
   void run() const;
 
 private:
-  std::pair<bool, json> handle(std::string const &target,
-                               json const &data) const;
+  std::pair<bool, json> handle(std::string const &target, json const &data) const;
 
-  std::string m_addr;
+  std::string m_host;
   uint16_t m_port;
 
   std::unordered_map<std::string, handler> m_handlers;

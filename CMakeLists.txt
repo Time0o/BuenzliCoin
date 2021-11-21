@@ -38,14 +38,23 @@ if(BUILD_TESTING)
 
   include(Catch)
 
-  add_executable(http_test
+  macro(bm_test target)
+    add_executable(${target} ${ARGN})
+
+    bm_config(${target})
+
+    target_link_libraries(${target} PRIVATE Catch2::Catch2)
+
+    catch_discover_tests(${target})
+  endmacro()
+
+  bm_test(http_test
     src/web/http_client.cc
     src/web/http_server.cc
     test/web/http_test.cc)
 
-  bm_config(http_test)
-
-  target_link_libraries(http_test PRIVATE Catch2::Catch2)
-
-  catch_discover_tests(http_test)
+  bm_test(websocket_test
+    src/web/websocket_client.cc
+    src/web/websocket_server.cc
+    test/web/websocket_test.cc)
 endif()
