@@ -8,6 +8,7 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <fmt/chrono.h>
@@ -23,6 +24,9 @@ using Clock = std::chrono::high_resolution_clock;
 template<typename HASHER = SHA256Hasher>
 class Block
 {
+  template<typename HASHER_>
+  friend class Blockchain;
+
   using digest = typename HASHER::digest;
 
 public:
@@ -129,7 +133,7 @@ private:
 
   static digest hash_from_string(std::string const &str)
   {
-    if (str.size() != HASHER::digest::size() * 2)
+    if (str.size() != std::tuple_size_v<digest> * 2)
       throw std::invalid_argument("invalid hash string");
 
     auto char_to_nibble = [](char c){
