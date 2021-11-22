@@ -174,14 +174,14 @@ public:
 
   Blockchain() = default;
 
-  auto operator<=>(Blockchain const &other)
-  { return m_blocks.size() <=> other.m_blocks.size(); }
-
   const_iterator begin() const
   { return m_blocks.begin(); }
 
   const_iterator end() const
   { return m_blocks.end(); }
+
+  bool longer_than(Blockchain const &other)
+  { return m_blocks.size() > other.m_blocks.size(); }
 
   bool empty() const
   { return m_blocks.empty(); }
