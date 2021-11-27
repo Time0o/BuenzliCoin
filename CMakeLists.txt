@@ -4,7 +4,7 @@ project(BuenzliMuenzli LANGUAGES CXX)
 
 include(CTest)
 
-find_package(Boost 1.67.0 REQUIRED)
+find_package(Boost 1.67.0 COMPONENTS program_options REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
 find_package(fmt REQUIRED)
@@ -19,6 +19,7 @@ macro(bm_config target)
 
   target_link_libraries(${target} PRIVATE
     Boost::boost
+    Boost::program_options
     OpenSSL::SSL
     Threads::Threads
     fmt::fmt
