@@ -32,12 +32,19 @@ public:
     http_setup();
   }
 
-  void run()
+  void run() const
   {
-    m_websocket_server_thread = std::thread([this]{ m_websocket_server.run(); });
-    m_websocket_server_thread.detach();
+    std::thread websocket_server_thread([this]{ m_websocket_server.run(); });
+    std::thread http_server_thread([this]{ m_http_server.run(); });
 
-    m_http_server.run();
+    websocket_server_thread.join();
+    http_server_thread.join();
+  }
+
+  void stop() const
+  {
+    m_websocket_server.stop();
+    m_http_server.stop();
   }
 
 private:
@@ -150,7 +157,6 @@ private:
   Blockchain<> m_blockchain;
 
   WebSocketServer m_websocket_server;
-  std::thread m_websocket_server_thread;
   std::list<WebSocketClient> m_websocket_peers;
 
   HTTPServer m_http_server;

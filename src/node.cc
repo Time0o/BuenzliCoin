@@ -1,41 +1,106 @@
+#include <cassert>
 #include <cstdint>
+#include <cstdlib>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <string>
 
-#include "node.h"
-
 #include <boost/program_options.hpp>
+
+#include "node.h"
+#include "util.h"
 
 namespace po = boost::program_options;
 
 using namespace bm;
+
+namespace
+{
+
+void parse_options(int argc,
+                   char **argv,
+                   std::string &websocket_host,
+                   uint16_t &websocket_port,
+                   std::string &http_host,
+                   uint16_t &http_port)
+{
+  po::variables_map vs;
+
+  po::options_description options { "Node options" };
+  options.add_options()
+    ("websocket-host", po::value<std::string>(&websocket_host)->required(), "websocket server ip")
+    ("websocket-port", po::value<uint16_t>(&websocket_port)->required(), "websocket server port")
+    ("http-host", po::value<std::string>(&http_host)->required(), "http server ip")
+    ("http-port", po::value<uint16_t>(&http_port)->required(), "http server port");
+
+  po::store(po::parse_command_line(argc, argv, options), vs);
+  po::notify(vs);
+}
+
+std::unique_ptr<Node> node;
+
+void create_node(std::string const &websocket_host,
+                 uint16_t websocket_port,
+                 std::string const &http_host,
+                 uint16_t http_port)
+{
+  node = std::make_unique<Node>(websocket_host,
+                                websocket_port,
+                                http_host,
+                                http_port);
+}
+
+void run_node()
+{
+  assert(node);
+
+  std::cout << "Running node" << std::endl;
+
+  node->run();
+}
+
+void stop_node(int)
+{
+  assert(node);
+
+  std::cout << "Stopping node" << std::endl;
+
+  node->stop();
+}
+
+} // end namespace
 
 int main(int argc, char **argv)
 {
   po::variables_map vs;
 
   try {
-    po::options_description options { "Node options" };
-    options.add_options()
-      ("websocket-host", po::value<std::string>(), "websocket server ip")
-      ("websocket-port", po::value<uint16_t>(), "websocket server port")
-      ("http-host", po::value<std::string>(), "http server ip")
-      ("http-port", po::value<uint16_t>(), "http server port");
+    std::string websocket_host;
+    uint16_t websocket_port;
+    std::string http_host;
+    uint16_t http_port;
 
-    po::store(po::parse_command_line(argc, argv, options), vs);
-    po::notify(vs);
+    parse_options(argc,
+                  argv,
+                  websocket_host,
+                  websocket_port,
+                  http_host,
+                  http_port);
+
+    create_node(websocket_host,
+                websocket_port,
+                http_host,
+                http_port);
+
+    util::on_termination(stop_node);
+
+    run_node();
 
   } catch (std::exception const &e) {
     std::cerr << e.what() << std::endl;
+    return EXIT_FAILURE;
   }
 
-  Node node {
-    vs["websocket_host"].as<std::string>(),
-    vs["websocket_post"].as<uint16_t>(),
-    vs["http_host"].as<std::string>(),
-    vs["http_post"].as<uint16_t>()
-  };
-
-  node.run();
+  return EXIT_SUCCESS;
 }

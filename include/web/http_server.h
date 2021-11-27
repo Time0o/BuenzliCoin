@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <unordered_map>
@@ -16,6 +17,7 @@ namespace bm
 
 class HTTPServer
 {
+  struct Context;
   class Connection;
 
   static constexpr char const *SERVER = "BuenzliCoin/0.0.1 HTTPServer";
@@ -27,6 +29,7 @@ public:
   using handlers = std::vector<std::pair<method, handler>>;
 
   HTTPServer(std::string const &host, uint16_t port);
+  ~HTTPServer();
 
   std::string host() const
   { return m_host; }
@@ -39,6 +42,7 @@ public:
                handler handler);
 
   void run() const;
+  void stop() const;
 
 private:
   std::pair<status, json> handle(std::string const &target,
@@ -50,6 +54,8 @@ private:
 
   std::unordered_map<std::string, handlers> m_handlers;
   mutable std::mutex m_handlers_mtx;
+
+  std::unique_ptr<Context> m_context;
 };
 
 } // end namespace bm

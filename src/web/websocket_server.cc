@@ -19,6 +19,17 @@ using namespace boost::beast;
 namespace bm
 {
 
+struct WebSocketServer::Context
+{
+  Context(std::string const &host, uint16_t port)
+  : acceptor { ioc, { ip::make_address(host), port } }
+  {}
+
+  io_context ioc { 1 };
+
+  ip::tcp::acceptor acceptor;
+};
+
 class WebSocketServer::Connection
   : public std::enable_shared_from_this<Connection>
 {
@@ -167,7 +178,11 @@ private:
 
 WebSocketServer::WebSocketServer(std::string const &host, uint16_t port)
 : m_host { host },
-  m_port { port }
+  m_port { port },
+  m_context { std::make_unique<Context>(host, port) }
+{}
+
+WebSocketServer::~WebSocketServer()
 {}
 
 void WebSocketServer::support(std::string const &target,
@@ -180,13 +195,14 @@ void WebSocketServer::support(std::string const &target,
 
 void WebSocketServer::run() const
 {
-  io_context ioc { 1 };
+  Connection::accept(this, m_context->ioc, m_context->acceptor);
 
-  ip::tcp::acceptor acceptor { ioc, { ip::make_address(m_host), m_port } };
+  m_context->ioc.run();
+}
 
-  Connection::accept(this, ioc, acceptor);
-
-  ioc.run();
+void WebSocketServer::stop() const
+{
+  m_context->ioc.stop();
 }
 
 std::pair<bool, json> WebSocketServer::handle(std::string const &target,

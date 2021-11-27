@@ -22,6 +22,17 @@ using namespace boost::beast;
 
 namespace bm {
 
+struct HTTPServer::Context
+{
+  Context(std::string const &host, uint16_t port)
+  : acceptor { ioc, { ip::make_address(host), port } }
+  {}
+
+  io_context ioc { 1 };
+
+  ip::tcp::acceptor acceptor;
+};
+
 class HTTPServer::Connection : public std::enable_shared_from_this<Connection>
 {
   static constexpr std::chrono::seconds TIMEOUT { 30 };
@@ -209,7 +220,11 @@ private:
 
 HTTPServer::HTTPServer(std::string const &host, uint16_t port)
 : m_host { host },
-  m_port { port }
+  m_port { port },
+  m_context { std::make_unique<Context>(host, port) }
+{}
+
+HTTPServer::~HTTPServer()
 {}
 
 void HTTPServer::support(std::string const &target,
@@ -242,13 +257,14 @@ std::pair<HTTPServer::status, json> HTTPServer::handle(
 
 void HTTPServer::run() const
 {
-  io_context ioc { 1 };
+  Connection::accept(this, m_context->ioc, m_context->acceptor);
 
-  ip::tcp::acceptor acceptor { ioc, { ip::make_address(m_host), m_port } };
+  m_context->ioc.run();
+}
 
-  Connection::accept(this, ioc, acceptor);
-
-  ioc.run();
+void HTTPServer::stop() const
+{
+  m_context->ioc.stop();
 }
 
 } // end namespace bm
