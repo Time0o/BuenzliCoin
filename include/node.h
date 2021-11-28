@@ -50,33 +50,33 @@ public:
 private:
   void websocket_setup()
   {
-    m_websocket_server.support("request-latest-block",
+    m_websocket_server.support("/request-latest-block",
                                [this](json const &)
                                { return handle_request_latest_block(); });
 
-    m_websocket_server.support("receive-latest-block",
+    m_websocket_server.support("/receive-latest-block",
                                [this](json const &data)
                                { return handle_receive_latest_block(data); });
   }
 
   void http_setup()
   {
-    m_http_server.support("list-blocks",
+    m_http_server.support("/list-blocks",
                           HTTPServer::method::get,
                           [this](json const &)
                           { return handle_list_blocks(); });
 
-    m_http_server.support("add-block",
+    m_http_server.support("/add-block",
                           HTTPServer::method::post,
                           [this](json const &data)
                           { return handle_add_block(data); });
 
-    m_http_server.support("list-peers",
+    m_http_server.support("/list-peers",
                           HTTPServer::method::get,
                           [this](json const &)
                           { return handle_list_peers(); });
 
-    m_http_server.support("add-peer",
+    m_http_server.support("/add-peer",
                           HTTPServer::method::post,
                           [this](json const &data)
                           { return handle_add_peer(data); });
@@ -124,7 +124,7 @@ private:
   void request_latest_block(WebSocketClient const &peer)
   {
     json request;
-    request["target"] = "get-latest-block";
+    request["target"] = "/get-latest-block";
 
     peer.send_async(request,
                     [this](bool success, std::string const &answer)

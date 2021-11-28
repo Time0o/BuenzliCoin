@@ -1,3 +1,4 @@
+#include <cassert>
 #include <cstdint>
 #include <iostream>
 #include <memory>
@@ -188,9 +189,13 @@ WebSocketServer::~WebSocketServer()
 void WebSocketServer::support(std::string const &target,
                               WebSocketServer::handler handler)
 {
-  std::scoped_lock lock(m_handlers_mtx);
+  assert(!target.empty() && target.front() == '/');
 
-  m_handlers[target] = std::move(handler);
+  {
+    std::scoped_lock lock(m_handlers_mtx);
+
+    m_handlers[target] = std::move(handler);
+  }
 }
 
 void WebSocketServer::run() const

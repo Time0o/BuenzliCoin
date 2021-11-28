@@ -59,13 +59,13 @@ private:
   {
     WebSocketServer server { SERVER_HOST, SERVER_PORT };
 
-    server.support("echo",
+    server.support("/echo",
                    [](json const &data)
                    {
                      return data;
                    });
 
-    server.support("echo-fail",
+    server.support("/echo-fail",
                    [](json const &data)
                    {
                      throw WebSocketError("Echo failed");
@@ -94,7 +94,7 @@ TEST_CASE_METHOD(WebSocketServerFixture, "WebSocket communication works", "[webs
   SECTION("request")
   {
     json request;
-    request["target"] = "echo";
+    request["target"] = "/echo";
     request["data"] = "hello";
 
     auto [success, answer] = test_client.send_sync(request);
@@ -109,7 +109,7 @@ TEST_CASE_METHOD(WebSocketServerFixture, "WebSocket communication works", "[webs
 
     bool first_callback_run { false };
 
-    request["target"] = "echo";
+    request["target"] = "/echo";
     request["data"] = "first hello";
 
     test_client.send_async(
@@ -124,7 +124,7 @@ TEST_CASE_METHOD(WebSocketServerFixture, "WebSocket communication works", "[webs
 
     bool second_callback_run { false };
 
-    request["target"] = "echo";
+    request["target"] = "/echo";
     request["data"] = "second hello";
 
     test_client.send_async(
@@ -170,7 +170,7 @@ TEST_CASE_METHOD(WebSocketServerFixture, "WebSocket communication works", "[webs
   SECTION("failing request")
   {
     json request;
-    request["target"] = "echo-fail";
+    request["target"] = "/echo-fail";
     request["data"] = "hello";
 
     auto [success, answer] = test_client.send_sync(request);

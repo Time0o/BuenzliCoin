@@ -58,7 +58,7 @@ private:
   {
     HTTPServer server { SERVER_HOST, SERVER_PORT };
 
-    server.support("hello",
+    server.support("/hello",
                    HTTPServer::method::get,
                    [](json const &)
                    {
@@ -67,12 +67,12 @@ private:
                      return std::make_pair(HTTPServer::status::ok, answer);
                    });
 
-    server.support("echo",
+    server.support("/echo",
                    HTTPServer::method::post,
                    [](json const &data)
                    { return std::make_pair(HTTPServer::status::ok, data); });
 
-    server.support("echo-fail",
+    server.support("/echo-fail",
                    HTTPServer::method::post,
                    [](json const &data)
                    {
@@ -101,7 +101,7 @@ TEST_CASE_METHOD(HTTPServerFixture, "HTTP communication works", "[http]")
 
   SECTION("GET request")
   {
-    auto [status, answer] = test_client.send_sync("hello", HTTPServer::method::get);
+    auto [status, answer] = test_client.send_sync("/hello", HTTPServer::method::get);
 
     REQUIRE(status == HTTPServer::status::ok);
 
@@ -112,7 +112,7 @@ TEST_CASE_METHOD(HTTPServerFixture, "HTTP communication works", "[http]")
   {
     json data = "echo";
 
-    auto [status, answer] = test_client.send_sync("echo", HTTPServer::method::post, data);
+    auto [status, answer] = test_client.send_sync("/echo", HTTPServer::method::post, data);
 
     REQUIRE(status == HTTPServer::status::ok);
 
@@ -122,13 +122,13 @@ TEST_CASE_METHOD(HTTPServerFixture, "HTTP communication works", "[http]")
   SECTION("multiple requests")
   {
     {
-      auto [status, _] = test_client.send_sync("hello", HTTPServer::method::get);
+      auto [status, _] = test_client.send_sync("/hello", HTTPServer::method::get);
 
       CHECK(status == HTTPServer::status::ok);
     }
 
     {
-      auto [status, _] = test_client.send_sync("hello", HTTPServer::method::get);
+      auto [status, _] = test_client.send_sync("/hello", HTTPServer::method::get);
 
       CHECK(status == HTTPServer::status::ok);
     }
@@ -136,7 +136,7 @@ TEST_CASE_METHOD(HTTPServerFixture, "HTTP communication works", "[http]")
 
   SECTION("invalid target")
   {
-    auto [status, answer] = test_client.send_sync("invalid-target", HTTPServer::method::get);
+    auto [status, answer] = test_client.send_sync("/invalid-target", HTTPServer::method::get);
 
     REQUIRE(status == HTTPServer::status::not_found);
     CHECK(answer == "File not found");
@@ -144,7 +144,7 @@ TEST_CASE_METHOD(HTTPServerFixture, "HTTP communication works", "[http]")
 
   SECTION("invalid method")
   {
-    auto [status, answer] = test_client.send_sync("hello", HTTPServer::method::post);
+    auto [status, answer] = test_client.send_sync("/hello", HTTPServer::method::post);
 
     REQUIRE(status == HTTPServer::status::bad_request);
     CHECK(answer == "Invalid request method 'POST'");
@@ -158,7 +158,7 @@ TEST_CASE_METHOD(HTTPServerFixture, "HTTP communication works", "[http]")
   {
     json data = "echo";
 
-    auto [status, answer] = test_client.send_sync("echo-fail", HTTPServer::method::post, data);
+    auto [status, answer] = test_client.send_sync("/echo-fail", HTTPServer::method::post, data);
 
     REQUIRE(status == HTTPServer::status::internal_server_error);
     CHECK(answer == "Echo failed");

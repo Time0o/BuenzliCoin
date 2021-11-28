@@ -1,3 +1,4 @@
+#include <cassert>
 #include <chrono>
 #include <cstdint>
 #include <iostream>
@@ -231,9 +232,13 @@ void HTTPServer::support(std::string const &target,
                          method const &method,
                          handler handler)
 {
-  std::scoped_lock lock(m_handlers_mtx);
+  assert(!target.empty() && target.front() == '/');
 
-  m_handlers[target].emplace_back(method, std::move(handler));
+  {
+    std::scoped_lock lock(m_handlers_mtx);
+
+    m_handlers[target].emplace_back(method, std::move(handler));
+  }
 }
 
 std::pair<HTTPServer::status, json> HTTPServer::handle(
