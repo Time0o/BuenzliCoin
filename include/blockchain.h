@@ -1,7 +1,6 @@
 #pragma once
 
 #include <array>
-#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <iomanip>
@@ -11,15 +10,12 @@
 #include <utility>
 #include <vector>
 
-#include <fmt/chrono.h>
-
+#include "clock.h"
 #include "hash.h"
 #include "json.h"
 
 namespace bm
 {
-
-using Clock = std::chrono::high_resolution_clock;
 
 template<typename HASHER = SHA256Hasher>
 class Block
@@ -33,7 +29,7 @@ public:
   explicit Block(std::string const &data,
                  std::optional<Block> const &last = std::nullopt)
   : m_data(data),
-    m_timestamp(Clock::now()),
+    m_timestamp(clock::now()),
     m_index(last ? last->m_index + 1 : 0),
     m_hash(hash())
   {
@@ -51,7 +47,7 @@ public:
     json j;
 
     j["data"] = m_data;
-    j["timestamp"] = timestamp_to_string(m_timestamp);
+    j["timestamp"] = clock::to_time_since_epoch(m_timestamp);
 
     j["index"] = m_index;
 
@@ -66,7 +62,7 @@ public:
   static Block from_json(json const &j)
   {
     auto data { j["data"].get<std::string>() };
-    auto timestamp { timestamp_from_string(j["timestamp"].get<std::string>()) };
+    auto timestamp { clock::from_time_since_epoch(j["timestamp"].get<uint64_t>()) };
 
     auto index { j["index"].get<uint64_t>() };
 
@@ -81,7 +77,7 @@ public:
 
 private:
   explicit Block(std::string const &data,
-                 Clock::time_point const &timestamp,
+                 clock::TimePoint const &timestamp,
                  uint64_t index,
                  digest const &hash,
                  std::optional<digest> const &hash_prev)
@@ -96,7 +92,7 @@ private:
   {
     std::stringstream ss;
 
-    ss << m_data << timestamp_to_string(m_timestamp) << m_index;
+    ss << m_data << clock::to_time_since_epoch(m_timestamp) << m_index;
 
     if (m_hash_prev) {
       for (auto byte : *m_hash_prev)
@@ -104,19 +100,6 @@ private:
     }
 
     return HASHER::instance().hash(ss.str());
-  }
-
-  static std::string timestamp_to_string(Clock::time_point const &timestamp)
-  {
-    return fmt::format("{:%Y-%m-%d %X}", timestamp);
-  }
-
-  static Clock::time_point timestamp_from_string(std::string const &str)
-  {
-    std::tm tm {};
-    std::get_time(&tm, "%Y-%m-%d %X");
-
-    return Clock::from_time_t(std::mktime(&tm));
   }
 
   static std::string hash_to_string(digest const &hash)
@@ -157,7 +140,7 @@ private:
   }
 
   std::string m_data;
-  Clock::time_point m_timestamp;
+  clock::TimePoint m_timestamp;
 
   uint64_t m_index;
 
