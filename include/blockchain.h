@@ -29,18 +29,25 @@ public:
   explicit Block(std::string const &data,
                  std::optional<Block> const &last = std::nullopt)
   : m_data(data),
-    m_timestamp(clock::now()),
-    m_index(last ? last->m_index + 1 : 0),
-    m_hash(hash())
+    m_timestamp(clock::now())
   {
-    if (last)
+    if (last) {
+      m_index = last->m_index + 1;
+
       m_hash_prev = last->m_hash;
+    }
+
+    m_hash = hash();
   }
 
+  std::string data() const
+  { return m_data; }
+
+  clock::TimePoint timestamp() const
+  { return m_timestamp; }
+
   bool valid() const
-  {
-    return m_hash == hash();
-  }
+  { return m_hash == hash(); }
 
   json to_json() const
   {
@@ -66,21 +73,21 @@ public:
 
     auto index { j["index"].get<uint64_t>() };
 
-    auto hash { j["hash"] };
+    auto hash { hash_from_string(j["hash"].get<std::string>()) };
 
     std::optional<digest> hash_prev;
     if (j.count("hash_prev"))
-        hash_prev = hash_from_string(j["hash_prev"]);
+        hash_prev = hash_from_string(j["hash_prev"].get<std::string>());
 
-    return Block { data, timestamp, index, hash, hash_prev };
+     return Block { data, timestamp, index, hash, hash_prev };
   }
 
 private:
-  explicit Block(std::string const &data,
-                 clock::TimePoint const &timestamp,
-                 uint64_t index,
-                 digest const &hash,
-                 std::optional<digest> const &hash_prev)
+  Block(std::string const &data,
+        clock::TimePoint const &timestamp,
+        uint64_t index,
+        digest const &hash,
+        std::optional<digest> const &hash_prev)
   : m_data(data),
     m_timestamp(timestamp),
     m_index(index),
@@ -92,7 +99,10 @@ private:
   {
     std::stringstream ss;
 
-    ss << m_data << clock::to_time_since_epoch(m_timestamp) << m_index;
+    ss << m_data;
+    ss << clock::to_time_since_epoch(m_timestamp);
+
+    ss << m_index;
 
     if (m_hash_prev) {
       for (auto byte : *m_hash_prev)
@@ -133,8 +143,8 @@ private:
     };
 
     digest d;
-    for (std::size_t i = 0; i < str.size(); ++i)
-      d[i] = char_to_nibble(str[i]) << 4 | char_to_nibble(str[i + 1]);
+    for (std::size_t i = 0; i < d.size(); ++i)
+      d[i] = (char_to_nibble(str[2 * i]) << 4) | char_to_nibble(str[2 * i + 1]);
 
     return d;
   }
@@ -142,7 +152,7 @@ private:
   std::string m_data;
   clock::TimePoint m_timestamp;
 
-  uint64_t m_index;
+  uint64_t m_index { 0 };
 
   digest m_hash;
   std::optional<digest> m_hash_prev;
@@ -163,11 +173,11 @@ public:
   const_iterator end() const
   { return m_blocks.end(); }
 
-  bool longer_than(Blockchain const &other)
-  { return m_blocks.size() > other.m_blocks.size(); }
-
   bool empty() const
   { return m_blocks.empty(); }
+
+  std::size_t length() const
+  { return m_blocks.size(); }
 
   bool valid() const
   {
@@ -220,8 +230,13 @@ public:
   static Blockchain from_json(json const &j)
   {
     std::vector<Block<HASHER>> blocks;
+
     for (auto const &j_block : j)
-      blocks.push_back(Block<HASHER>::from_json(j_block));
+    {
+      auto block { Block<HASHER>::from_json(j_block) };
+
+      blocks.push_back(std::move(block));
+    }
 
     return Blockchain { blocks };
   }
@@ -239,15 +254,15 @@ private:
   }
 
   static bool valid_next_block(Block<HASHER> const &block,
-                               Block<HASHER> const &prev_block)
+                               Block<HASHER> const &block_prev)
   {
     if (!block.valid())
       return false;
 
-    if (block.m_index != prev_block.m_index + 1)
+    if (block.m_index != block_prev.m_index + 1)
       return false;
 
-    if (!block.m_hash_prev || (*block.m_hash_prev != prev_block.m_hash))
+    if (!block.m_hash_prev || (*block.m_hash_prev != block_prev.m_hash))
       return false;
 
     return true;

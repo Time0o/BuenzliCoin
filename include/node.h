@@ -92,7 +92,7 @@ private:
   std::pair<HTTPServer::status, json> handle_add_block(json const &data)
   {
     // XXX Handle parse errors.
-    m_blockchain.append(data["data"].get<std::string>());
+    m_blockchain.append(data.get<std::string>());
 
     return { HTTPServer::status::ok, {} };
   }
