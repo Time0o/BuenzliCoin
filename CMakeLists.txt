@@ -59,8 +59,10 @@ if(BUILD_TESTING)
   macro(bm_integration_test target)
     add_test(
       NAME ${target}
-      COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:bc> ${PYTHON} ${ARGN}
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test/integration)
+      COMMAND ${CMAKE_COMMAND} -E env NODE=$<TARGET_FILE:node>
+                                      PYTHONPATH=$<TARGET_FILE_DIR:bc>
+              ${PYTHON} ${ARGN}
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
   endmacro()
 
   bm_unit_test(http_test
@@ -73,5 +75,6 @@ if(BUILD_TESTING)
     src/web/websocket_server.cc
     test/unit/web/websocket_test.cc)
 
-  bm_integration_test(blockchain_test blockchain_test.py)
+  bm_integration_test(single_node_test
+    test/integration/single_node_test.py)
 endif()
