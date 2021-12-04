@@ -17,7 +17,10 @@ PYBIND11_MODULE(bc, m)
     .def("__repr__", &Block<>::to_json)
     .def("data", &Block<>::data)
     .def("timestamp", &Block<>::timestamp)
+    .def("index", &Block<>::index)
     .def("valid", &Block<>::valid)
+    .def("is_genesis", &Block<>::is_genesis)
+    .def("is_successor_of", &Block<>::is_successor_of, "prev"_a)
     .def("to_json", &Block<>::to_json)
     .def_static("from_json", &Block<>::from_json, "j"_a);
 
@@ -27,6 +30,7 @@ PYBIND11_MODULE(bc, m)
     .def("__iter__",
          [](Blockchain<> const &blockchain)
          { return py::make_iterator(blockchain.begin(), blockchain.end()); })
+    .def("latest", &Blockchain<>::empty)
     .def("empty", &Blockchain<>::empty)
     .def("length", &Blockchain<>::length)
     .def("valid", &Blockchain<>::valid)

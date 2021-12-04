@@ -46,8 +46,20 @@ public:
   clock::TimePoint timestamp() const
   { return m_timestamp; }
 
+  uint64_t index() const
+  { return m_index; }
+
   bool valid() const
   { return m_hash == hash(); }
+
+  bool is_genesis() const
+  { return m_index == 0 && !m_hash_prev; }
+
+  bool is_successor_of(Block const &prev) const
+  {
+    return (m_index == prev.m_index + 1) &&
+           (m_hash_prev && *m_hash_prev == prev.m_hash);
+  }
 
   json to_json() const
   {
@@ -173,6 +185,13 @@ public:
   const_iterator end() const
   { return m_blocks.end(); }
 
+  Block<HASHER> const &latest() const
+  {
+    assert(!m_blocks.empty());
+
+    return m_blocks.back();
+  }
+
   bool empty() const
   { return m_blocks.empty(); }
 
@@ -184,11 +203,16 @@ public:
     if (m_blocks.empty())
       return false;
 
-    if (!valid_genesis_block(m_blocks[0]))
+    for (auto const &block : m_blocks) {
+      if (!block.valid())
+        return false;
+    }
+
+    if (!m_blocks[0].is_genesis())
       return false;
 
     for (uint64_t i = 1; i < m_blocks.size(); ++i) {
-      if (!valid_next_block(m_blocks[i], m_blocks[i - 1]))
+      if (!m_blocks[i].is_successor_of(m_blocks[i - 1]))
         return false;
     }
 
@@ -203,7 +227,7 @@ public:
       m_blocks.emplace_back(data, m_blocks.back());
   }
 
-  void append(Block<HASHER> const &block)
+  void append(Block<HASHER> block)
   {
     if (m_blocks.empty()) {
       if (!valid_genesis_block(block))
@@ -214,7 +238,7 @@ public:
         throw std::logic_error("attempted appending invalid next block");
     }
 
-    m_blocks.push_back(block);
+    m_blocks.emplace_back(std::move(block));
   }
 
   json to_json() const
@@ -249,7 +273,7 @@ private:
   static bool valid_genesis_block(Block<HASHER> const &block)
   {
     return block.valid() &&
-           block.m_index == 0 &&
+           block.index() == 0 &&
            !block.m_hash_prev;
   }
 
@@ -259,7 +283,7 @@ private:
     if (!block.valid())
       return false;
 
-    if (block.m_index != block_prev.m_index + 1)
+    if (block.index() != block_prev.index() + 1)
       return false;
 
     if (!block.m_hash_prev || (*block.m_hash_prev != block_prev.m_hash))
