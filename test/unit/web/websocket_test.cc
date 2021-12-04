@@ -10,7 +10,6 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
-#include <unistd.h>
 #include <utility>
 
 #include <boost/beast/http.hpp>
@@ -37,57 +36,37 @@ public:
 
   WebSocketServerFixture()
   {
-    switch (fork_server())
-    {
-    case -1:
-      throw std::runtime_error("failed to create server process");
-    case 0:
-      run_server();
-    default:
-      wait_for_server();
-    };
+    m_server.support("/echo",
+                     [](json const &data)
+                     {
+                       return data;
+                     });
+
+    m_server.support("/echo-fail",
+                     [](json const &data)
+                     {
+                       throw WebSocketError("Echo failed");
+
+                       return data;
+                     });
+
+    m_server_thread = std::thread { [this]{ m_server.run(); } };
   }
 
   ~WebSocketServerFixture()
-  { kill_server(); }
-
-private:
-  pid_t fork_server()
-  { return m_pid = fork(); }
-
-  void run_server() const
   {
-    WebSocketServer server { SERVER_HOST, SERVER_PORT };
-
-    server.support("/echo",
-                   [](json const &data)
-                   {
-                     return data;
-                   });
-
-    server.support("/echo-fail",
-                   [](json const &data)
-                   {
-                     throw WebSocketError("Echo failed");
-
-                     return data;
-                   });
-
-    server.run();
+    m_server.stop();
+    m_server_thread.join();
   }
 
-  static void wait_for_server()
-  { std::this_thread::sleep_for(1s); }
-
-  void kill_server() const
-  { kill(m_pid, SIGINT); }
-
-  pid_t m_pid;
+private:
+  WebSocketServer m_server { SERVER_HOST, SERVER_PORT };
+  std::thread m_server_thread;
 };
 
 } // end namespace
 
-TEST_CASE_METHOD(WebSocketServerFixture, "WebSocket communication works", "[websocket]")
+TEST_CASE_METHOD(WebSocketServerFixture, "websocket_test", "[web]")
 {
   WebSocketClient test_client { SERVER_HOST, SERVER_PORT };
 
@@ -103,44 +82,62 @@ TEST_CASE_METHOD(WebSocketServerFixture, "WebSocket communication works", "[webs
     CHECK(answer == "\"hello\"");
   }
 
-  SECTION("multiple requests")
+  SECTION("multiple sequential requests")
   {
-    json request;
+    enum { NUM_REQUESTS = 2 };
 
-    bool first_callback_run { false };
+    for (int i = 0; i < NUM_REQUESTS; ++i) {
+      json request;
+      request["target"] = "/echo";
+      request["data"] = "hello " + std::to_string(i);
 
-    request["target"] = "/echo";
-    request["data"] = "first hello";
+      bool callback_run { false };
 
-    test_client.send_async(
-      request,
-      [&](bool success, std::string const &answer)
-      {
-        first_callback_run = true;
+      test_client.send_async(
+        request,
+        [&callback_run, i](bool success, std::string const &answer)
+        {
+          callback_run = true;
 
-        REQUIRE(success);
-        CHECK(answer == "\"first hello\"");
-      });
+          REQUIRE(success);
+          CHECK(answer == "\"hello " + std::to_string(i) + "\"");
+        });
 
-    bool second_callback_run { false };
+      test_client.run();
 
-    request["target"] = "/echo";
-    request["data"] = "second hello";
+      INFO("Request no. " + std::to_string(i + 1));
+      CHECK(callback_run);
+    }
+  }
 
-    test_client.send_async(
-      request,
-      [&](bool success, std::string const &answer)
-      {
-        second_callback_run = true;
+  SECTION("multiple parallel requests")
+  {
+    enum { NUM_REQUESTS = 2 };
 
-        REQUIRE(success);
-        CHECK(answer == "\"second hello\"");
-      });
+    std::array<bool, NUM_REQUESTS> callback_run = { false };
+
+    for (int i = 0; i < NUM_REQUESTS; ++i) {
+      json request;
+      request["target"] = "/echo";
+      request["data"] = "hello " + std::to_string(i);
+
+      test_client.send_async(
+        request,
+        [&callback_run, i](bool success, std::string const &answer)
+        {
+          callback_run[i] = true;
+
+          REQUIRE(success);
+          CHECK(answer == "\"hello " + std::to_string(i) + "\"");
+        });
+    }
 
     test_client.run();
 
-    REQUIRE(first_callback_run);
-    REQUIRE(second_callback_run);
+    for (int i = 0; i < NUM_REQUESTS; ++i) {
+      INFO("Request no. " + std::to_string(i + 1));
+      CHECK(callback_run[i]);
+    }
   }
 
   // XXX Invalid server URL.

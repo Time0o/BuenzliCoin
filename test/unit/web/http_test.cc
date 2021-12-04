@@ -9,7 +9,6 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
-#include <unistd.h>
 #include <utility>
 
 #include <boost/beast/http.hpp>
@@ -36,66 +35,46 @@ public:
 
   HTTPServerFixture()
   {
-    switch (fork_server())
-    {
-    case -1:
-      throw std::runtime_error("failed to create server process");
-    case 0:
-      run_server();
-    default:
-      wait_for_server();
-    };
+    m_server.support("/hello",
+                     HTTPServer::method::get,
+                     [](json const &)
+                     {
+                       json answer = "hello";
+
+                       return std::make_pair(HTTPServer::status::ok, answer);
+                     });
+
+    m_server.support("/echo",
+                     HTTPServer::method::post,
+                     [](json const &data)
+                     { return std::make_pair(HTTPServer::status::ok, data); });
+
+    m_server.support("/echo-fail",
+                     HTTPServer::method::post,
+                     [](json const &data)
+                     {
+                       throw HTTPError(HTTPServer::status::internal_server_error, "Echo failed");
+
+                       return std::make_pair(HTTPServer::status::ok, data);
+                     });
+
+    m_server_thread = std::thread { [this]{ m_server.run(); } };
   }
 
   ~HTTPServerFixture()
-  { kill_server(); }
-
-private:
-  pid_t fork_server()
-  { return m_pid = fork(); }
-
-  void run_server() const
   {
-    HTTPServer server { SERVER_HOST, SERVER_PORT };
-
-    server.support("/hello",
-                   HTTPServer::method::get,
-                   [](json const &)
-                   {
-                     json answer = "hello";
-
-                     return std::make_pair(HTTPServer::status::ok, answer);
-                   });
-
-    server.support("/echo",
-                   HTTPServer::method::post,
-                   [](json const &data)
-                   { return std::make_pair(HTTPServer::status::ok, data); });
-
-    server.support("/echo-fail",
-                   HTTPServer::method::post,
-                   [](json const &data)
-                   {
-                     throw HTTPError(HTTPServer::status::internal_server_error, "Echo failed");
-
-                     return std::make_pair(HTTPServer::status::ok, data);
-                   });
-
-    server.run();
+    m_server.stop();
+    m_server_thread.join();
   }
 
-  static void wait_for_server()
-  { std::this_thread::sleep_for(1s); }
-
-  void kill_server() const
-  { kill(m_pid, SIGINT); }
-
-  pid_t m_pid;
+private:
+  HTTPServer m_server { SERVER_HOST, SERVER_PORT };
+  std::thread m_server_thread;
 };
 
 } // end namespace
 
-TEST_CASE_METHOD(HTTPServerFixture, "HTTP communication works", "[http]")
+TEST_CASE_METHOD(HTTPServerFixture, "http_test", "[web]")
 {
   HTTPClient test_client { SERVER_HOST, SERVER_PORT };
 
