@@ -11,7 +11,8 @@ class Node:
     DEFAULT_WEBSOCKET_PORT = 8080
     DEFAULT_HTTP_PORT = 8081
 
-    SETUP_TIME = 0.5
+    SETUP_TIME = 0.25
+    TEARDOWN_TIME = 0.25
 
     def __init__(self,
                  websocket_host='127.0.0.1',
@@ -40,26 +41,35 @@ class Node:
     def stop(self):
         self._process.terminate()
 
+        self._process.wait()
+
     def add_block(self, data):
         self._api_call('add-block', 'post', data=data)
 
     def list_blocks(self):
         return bc.Blockchain.from_json(self._api_call('list-blocks', 'get'))
 
+    def add_peer(self, node):
+        data = {
+            'host': node._websocket_host,
+            'port': node._websocket_port
+        }
+
+        self._api_call('add-peer', 'post', data=data)
+
     def _api_call(self, func, method, data=None):
         method = getattr(requests, method)
 
         response = method(url=f'http://{self._api_url}/{func}', json=data)
 
-        print('FOO', response.status_code, flush=True) # TODO
         assert response.status_code == 200
 
         return response.json()
 
 
-class NodeContext:
-    def __init__(self, *args, **kwargs):
-        self._node = Node(*args, **kwargs)
+class SingleNodeContext:
+    def __init__(self, node):
+        self._node = node
 
     def __enter__(self):
         self._node.run()
@@ -71,11 +81,36 @@ class NodeContext:
     def __exit__(self, type, value, traceback):
         self._node.stop()
 
+        time.sleep(Node.TEARDOWN_TIME)
 
-def run_node(node_id=0):
-    return NodeContext(websocket_port=Node.DEFAULT_WEBSOCKET_PORT + node_id,
-                       http_port=Node.DEFAULT_HTTP_PORT + node_id)
+
+class MultiNodeContext:
+    def __init__(self, nodes):
+        self._nodes = nodes
+
+    def __enter__(self):
+        for node in self._nodes:
+            node.run()
+
+        time.sleep(Node.SETUP_TIME)
+
+        return self._nodes
+
+    def __exit__(self, type, value, traceback):
+        for node in self._nodes:
+            node.stop()
+
+        time.sleep(Node.TEARDOWN_TIME)
+
+
+def make_node(node_id):
+    return Node(websocket_port=Node.DEFAULT_WEBSOCKET_PORT + node_id * 2,
+                http_port=Node.DEFAULT_HTTP_PORT + node_id * 2)
+
+
+def run_node():
+    return SingleNodeContext(make_node(node_id=0))
 
 
 def run_nodes(num_nodes):
-    return (run_node(node_id) for node_id in range(num_nodes))
+    return MultiNodeContext([make_node(node_id=i) for i in range(num_nodes)])

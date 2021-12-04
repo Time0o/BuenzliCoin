@@ -75,6 +75,6 @@ if(BUILD_TESTING)
     src/web/websocket_server.cc
     test/unit/web/websocket_test.cc)
 
-  bm_integration_test(single_node_test
-    test/integration/single_node_test.py)
+  bm_integration_test(blockchain_test
+    test/integration/blockchain_test.py)
 endif()

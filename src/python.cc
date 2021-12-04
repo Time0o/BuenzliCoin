@@ -1,6 +1,7 @@
 #include <pybind11/chrono.h>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 #include <pybind11_json/pybind11_json.hpp>
 
 #include "blockchain.h"
@@ -27,10 +28,8 @@ PYBIND11_MODULE(bc, m)
   py::class_<Blockchain<>>(m, "Blockchain")
     .def("__repr__", &Blockchain<>::to_json)
     .def("__len__", &Blockchain<>::length)
-    .def("__iter__",
-         [](Blockchain<> const &blockchain)
-         { return py::make_iterator(blockchain.begin(), blockchain.end()); })
-    .def("latest", &Blockchain<>::empty)
+    .def("all_blocks", &Blockchain<>::all_blocks)
+    .def("latest_block", &Blockchain<>::latest_block)
     .def("empty", &Blockchain<>::empty)
     .def("length", &Blockchain<>::length)
     .def("valid", &Blockchain<>::valid)

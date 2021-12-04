@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <iomanip>
+#include <mutex>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -179,27 +180,54 @@ public:
 
   Blockchain() = default;
 
-  const_iterator begin() const
-  { return m_blocks.begin(); }
-
-  const_iterator end() const
-  { return m_blocks.end(); }
-
-  Block<HASHER> const &latest() const
+  Blockchain(Blockchain const &&other)
   {
+    std::scoped_lock lock { m_mtx, other.m_mtx };
+
+    m_blocks = std::move(other.m_blocks);
+  }
+
+  void operator=(Blockchain const &&other)
+  {
+    std::scoped_lock lock { m_mtx, other.m_mtx };
+
+    m_blocks = std::move(other.m_blocks);
+  }
+
+  std::vector<Block<HASHER>> all_blocks() const
+  {
+    std::scoped_lock lock { m_mtx };
+
+    return m_blocks;
+  }
+
+  Block<HASHER> const &latest_block() const
+  {
+    std::scoped_lock lock { m_mtx };
+
     assert(!m_blocks.empty());
 
     return m_blocks.back();
   }
 
   bool empty() const
-  { return m_blocks.empty(); }
+  {
+    std::scoped_lock lock { m_mtx };
+
+    return m_blocks.empty();
+  }
 
   std::size_t length() const
-  { return m_blocks.size(); }
+  {
+    std::scoped_lock lock { m_mtx };
+
+    return m_blocks.size();
+  }
 
   bool valid() const
   {
+    std::scoped_lock lock { m_mtx };
+
     if (m_blocks.empty())
       return false;
 
@@ -221,6 +249,8 @@ public:
 
   void append(std::string const &data)
   {
+    std::scoped_lock lock { m_mtx };
+
     if (m_blocks.empty())
       m_blocks.emplace_back(data);
     else
@@ -229,6 +259,8 @@ public:
 
   void append(Block<HASHER> block)
   {
+    std::scoped_lock lock { m_mtx };
+
     if (m_blocks.empty()) {
       if (!valid_genesis_block(block))
         throw std::logic_error("attempted appending invalid genesis block");
@@ -243,6 +275,8 @@ public:
 
   json to_json() const
   {
+    std::scoped_lock lock { m_mtx };
+
     json j = json::array();
 
     for (uint64_t i = 0; i < m_blocks.size(); ++i)
@@ -293,6 +327,7 @@ private:
   }
 
   std::vector<Block<HASHER>> m_blocks;
+  mutable std::mutex m_mtx;
 };
 
 } // end namespace bm
