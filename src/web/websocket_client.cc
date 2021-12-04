@@ -202,6 +202,7 @@ void WebSocketClient::send_async(json const &request, callback cb) const
 void WebSocketClient::run() const
 {
   m_context->ioc.run();
+  m_context->ioc.restart();
 }
 
 } // end namespace bm
