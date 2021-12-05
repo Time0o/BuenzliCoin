@@ -8,6 +8,9 @@
 #include <unordered_map>
 #include <utility>
 
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+
 #include "blockchain.h"
 #include "json.h"
 #include "web/http_server.h"
@@ -22,11 +25,14 @@ namespace bm
 class Node
 {
 public:
-  Node(std::string const &websocket_addr,
+  Node(std::string const &name,
+       std::string const &websocket_addr,
        uint16_t websocket_port,
        std::string const &http_addr,
        uint16_t http_port)
-  : m_websocket_server { websocket_addr, websocket_port },
+  : m_name { name },
+    m_uuid { boost::uuids::random_generator()() },
+    m_websocket_server { websocket_addr, websocket_port },
     m_http_server { http_addr, http_port }
   {
     websocket_setup();
@@ -256,6 +262,9 @@ private:
 
     t.detach();
   }
+
+  std::string const &m_name;
+  boost::uuids::uuid m_uuid;
 
   Blockchain<> m_blockchain;
   mutable std::mutex m_blockchain_mtx;

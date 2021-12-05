@@ -15,11 +15,13 @@ class Node:
     TEARDOWN_TIME = 0.25
 
     def __init__(self,
+                 name,
                  websocket_host='127.0.0.1',
                  websocket_port=DEFAULT_WEBSOCKET_PORT,
                  http_host='127.0.0.1',
                  http_port=DEFAULT_HTTP_PORT):
 
+        self._name = name
         self._websocket_host = websocket_host
         self._websocket_port = websocket_port
         self._http_host = http_host
@@ -30,6 +32,7 @@ class Node:
     def run(self):
         args = [
             os.getenv('NODE'),
+            '--name', self._name,
             '--websocket-host', self._websocket_host,
             '--websocket-port', str(self._websocket_port),
             '--http-host', self._http_host,
@@ -104,7 +107,8 @@ class MultiNodeContext:
 
 
 def make_node(node_id):
-    return Node(websocket_port=Node.DEFAULT_WEBSOCKET_PORT + node_id * 2,
+    return Node(name=f'node{node_id}',
+                websocket_port=Node.DEFAULT_WEBSOCKET_PORT + node_id * 2,
                 http_port=Node.DEFAULT_HTTP_PORT + node_id * 2)
 
 

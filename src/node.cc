@@ -20,6 +20,7 @@ namespace
 
 void parse_options(int argc,
                    char **argv,
+                   std::string &name,
                    std::string &websocket_host,
                    uint16_t &websocket_port,
                    std::string &http_host,
@@ -29,6 +30,7 @@ void parse_options(int argc,
 
   po::options_description options { "Node options" };
   options.add_options()
+    ("name", po::value<std::string>(&name)->required(), "node name")
     ("websocket-host", po::value<std::string>(&websocket_host)->required(), "websocket server ip")
     ("websocket-port", po::value<uint16_t>(&websocket_port)->required(), "websocket server port")
     ("http-host", po::value<std::string>(&http_host)->required(), "http server ip")
@@ -40,12 +42,14 @@ void parse_options(int argc,
 
 std::unique_ptr<Node> node;
 
-void create_node(std::string const &websocket_host,
+void create_node(std::string const &name,
+                 std::string const &websocket_host,
                  uint16_t websocket_port,
                  std::string const &http_host,
                  uint16_t http_port)
 {
-  node = std::make_unique<Node>(websocket_host,
+  node = std::make_unique<Node>(name,
+                                websocket_host,
                                 websocket_port,
                                 http_host,
                                 http_port);
@@ -76,6 +80,7 @@ int main(int argc, char **argv)
   po::variables_map vs;
 
   try {
+    std::string name;
     std::string websocket_host;
     uint16_t websocket_port;
     std::string http_host;
@@ -83,12 +88,14 @@ int main(int argc, char **argv)
 
     parse_options(argc,
                   argv,
+                  name,
                   websocket_host,
                   websocket_port,
                   http_host,
                   http_port);
 
-    create_node(websocket_host,
+    create_node(name,
+                websocket_host,
                 websocket_port,
                 http_host,
                 http_port);
