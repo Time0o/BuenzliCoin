@@ -118,4 +118,4 @@ def run_node():
 
 
 def run_nodes(num_nodes):
-    return MultiNodeContext([make_node(node_id=i) for i in range(num_nodes)])
+    return MultiNodeContext([make_node(node_id=i) for i in range(1, num_nodes + 1)])

@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cstdint>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -12,6 +13,7 @@
 #include "json.h"
 #include "log.h"
 #include "uuid.h"
+#include "web/http_error.h"
 #include "web/http_server.h"
 #include "web/websocket_client.h"
 #include "web/websocket_error.h"
@@ -109,8 +111,18 @@ private:
 
   std::pair<HTTPServer::status, json> handle_add_block(json const &data)
   {
-    // XXX Handle parse errors.
-    m_blockchain.append(data.get<std::string>());
+    m_log.info("Running 'add_block' handler");
+
+    try {
+      m_blockchain.append(data.get<std::string>());
+
+    } catch (std::exception const &e) {
+      std::string err { "Malformed 'add_block' request: '" + data.dump() + "'" };
+
+      m_log.error(err);
+
+      throw HTTPError { HTTPServer::status::bad_request, err };
+    }
 
     exec_detached(&Node::broadcast_latest_block);
 
@@ -119,14 +131,31 @@ private:
 
   std::pair<HTTPServer::status, json> handle_list_peers() const
   {
+    m_log.info("Running 'list_peers' handler");
+
     return { HTTPServer::status::ok, m_websocket_peers.to_json() };
   }
 
   std::pair<HTTPServer::status, json> handle_add_peer(json const &data)
   {
-    // XXX Handle parse errors.
-    std::string host { data["host"].get<std::string>() };
-    uint16_t port { data["port"].get<uint16_t>() };
+    m_log.info("Running 'add_peer' handler");
+
+    std::string host;
+    uint16_t port;
+
+    try {
+      host = data["host"].get<std::string>();
+      port = data["port"].get<uint16_t>();
+
+    } catch (std::exception const &e) {
+      std::string err { "Malformed 'add_peer' request: '" + data.dump() + "'" };
+
+      m_log.error(err);
+
+      throw HTTPError { HTTPServer::status::bad_request, err };
+    }
+
+    m_log.info("Peer is {}:{}", host, port);
 
     auto peer_id { m_websocket_peers.add(host, port) };
 
@@ -137,10 +166,16 @@ private:
 
   json handle_request_latest_block(json const &data) const
   {
-    if (m_blockchain.empty())
-      throw WebSocketError("Blockchain is empty");
+    m_log.info("Running 'request_latest_block' handler");
 
-    // XXX Handle failure.
+    if (m_blockchain.empty()) {
+      std::string err { "Blockchain is empty" };
+
+      m_log.error(err);
+
+      throw WebSocketError(err);
+    }
+
     json answer;
     answer["block"] = m_blockchain.latest_block().to_json();
     // XXX Client might see different host.
@@ -152,7 +187,8 @@ private:
 
   json handle_request_all_blocks(json const &data) const
   {
-    // XXX Handle failure.
+    m_log.info("Running 'request_all_blocks' handler");
+
     json answer;
     answer["blockchain"] = m_blockchain.to_json();
     // XXX Client might see different host.
@@ -164,28 +200,76 @@ private:
 
   json handle_receive_latest_block(json const &data)
   {
-    // XXX Handle failures.
-    auto block { Block<>::from_json(data["block"]) };
-    if (!block.valid())
-      // XXX Log this.
-      return {};
+    m_log.info("Running 'receive_latest_block' handler");
 
-    if (block.index() > m_blockchain.length()) {
-      // XXX Handle failure.
-      auto host { data["origin"]["host"].get<std::string>() };
-      auto port { data["origin"]["port"].get<uint16_t>() };
+    if (m_blockchain.empty())
+      m_log.info("Blockchain is currently empty");
+    else
+      m_log.info("Current latest block: '{}'", m_blockchain.latest_block().to_json().dump());
+
+    std::optional<Block<>> block;
+
+    try {
+      block = Block<>::from_json(data["block"]);
+
+      if (!block->valid()) {
+        std::string err { "Invalid block: '" + block->to_json().dump() + "'" };
+
+        m_log.error(err);
+
+        throw WebSocketError(err);
+      }
+
+      m_log.debug("Received block: '{}'", block->to_json().dump());
+
+    } catch (std::exception const &e) {
+      std::string err { "Malformed 'receive_latest_block' request: '" + data.dump() + "'" };
+
+      m_log.error(err);
+
+      throw WebSocketError(err);
+    }
+
+    if (block->index() > m_blockchain.length()) {
+      std::string host;
+      uint16_t port;
+
+      try {
+        host = data["origin"]["host"].get<std::string>();
+        port = data["origin"]["port"].get<uint16_t>();
+
+      } catch (std::exception const &e) {
+        std::string err { "Invalid 'receive_latest_block' request: '" + data.dump() + "'" };
+
+        m_log.error(err);
+
+        throw WebSocketError(err);
+      }
 
       auto peer_id { m_websocket_peers.find(host, port) };
 
       if (peer_id == 0)
         peer_id = m_websocket_peers.add(host, port);
 
+      m_log.info("Peer is {}:{}", host, port);
+
       exec_detached(&Node::request_all_blocks, peer_id);
 
-    } else if ((m_blockchain.empty() && block.is_genesis()) ||
-               block.is_successor_of(m_blockchain.latest_block())) {
+    } else if (block->index() == m_blockchain.length()) {
+      if (m_blockchain.empty() && block->is_genesis()) {
+        m_log.info("Appending new genesis block");
+        m_blockchain.append(std::move(*block));
 
-      m_blockchain.append(std::move(block));
+      } else if (block->is_successor_of(m_blockchain.latest_block())) {
+        m_log.info("Appending next block");
+        m_blockchain.append(std::move(*block));
+
+      } else {
+        m_log.info("Ignoring block (not a valid successor)");
+      }
+
+    } else {
+      m_log.info("Ignoring block (not a successor)");
     }
 
     return {};
@@ -193,20 +277,44 @@ private:
 
   json handle_receive_all_blocks(json const &data)
   {
-    // XXX Handle failure.
-    auto blockchain { Blockchain<>::from_json(data["blockchain"]) };
-    if (!blockchain.valid())
-      // XXX Log this.
-      return {};
+    m_log.info("Running 'receive_all_blocks' handler");
 
-    if (blockchain.length() > m_blockchain.length())
-      m_blockchain = std::move(blockchain);
+    std::optional<Blockchain<>> blockchain;
+
+    try {
+      blockchain = Blockchain<>::from_json(data["blockchain"]);
+
+      if (!blockchain->valid()) {
+        std::string err { "Invalid blockchain: '" + blockchain->to_json().dump() + "'" };
+
+        m_log.error(err);
+
+        throw WebSocketError(err);
+      }
+
+      m_log.debug("Received blockchain: '{}'", blockchain->to_json().dump());
+
+    } catch (std::exception const &e) {
+      std::string err { "Malformed 'receive_all_blocks' request: '" + data.dump() + "'" };
+
+      m_log.error(err);
+
+      throw WebSocketError(err);
+    }
+
+    if (blockchain->length() > m_blockchain.length()) {
+      m_log.info("Replacing current blockchain");
+
+      m_blockchain = std::move(*blockchain);
+    }
 
     return {};
   }
 
   void broadcast_latest_block()
   {
+    m_log.info("Broadcasting latest block");
+
     json request;
     request["target"] = "/receive-latest-block";
     request["data"]["block"] = m_blockchain.latest_block().to_json();
@@ -220,13 +328,16 @@ private:
         request,
         [this](bool success, std::string const &answer)
         {
-          // XXX Handle failure.
+          if (!success)
+            m_log.error("Broadcasting latest block failed: {}", answer);
         });
     }
   }
 
   void request_latest_block(std::size_t peer_id)
   {
+    m_log.info("Requesting latest block");
+
     json request;
     request["target"] = "/request-latest-block";
 
@@ -235,14 +346,21 @@ private:
       request,
       [this](bool success, std::string const &answer)
       {
-        // XXX Handle failure.
-        if (success)
+        if (success) {
+          try {
             handle_receive_latest_block(json::parse(answer));
+          } catch (...) {}
+
+        } else {
+          m_log.error("Requestion latest block failed: {}", answer);
+        }
       });
   }
 
   void request_all_blocks(std::size_t peer_id)
   {
+    m_log.info("Requesting all blocks");
+
     json request;
     request["target"] = "/request-all-blocks";
 
@@ -251,9 +369,14 @@ private:
       request,
       [this](bool success, std::string const &answer)
       {
-        // XXX Handle failure.
-        if (success)
+        if (success) {
+          try {
             handle_receive_all_blocks(json::parse(answer));
+          } catch (...) {}
+
+        } else {
+          m_log.error("Requesting all blocks failed");
+        }
       });
   }
 
