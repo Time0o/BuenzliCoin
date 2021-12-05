@@ -10,9 +10,11 @@
 
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
 
 #include "blockchain.h"
 #include "json.h"
+#include "log.h"
 #include "web/http_server.h"
 #include "web/websocket_client.h"
 #include "web/websocket_error.h"
@@ -32,6 +34,7 @@ public:
        uint16_t http_port)
   : m_name { name },
     m_uuid { boost::uuids::random_generator()() },
+    m_log { "(node {}:{})", m_name, boost::uuids::to_string(m_uuid) },
     m_websocket_server { websocket_addr, websocket_port },
     m_http_server { http_addr, http_port }
   {
@@ -41,6 +44,8 @@ public:
 
   void run() const
   {
+    m_log.info("Running node");
+
     std::thread websocket_server_thread([this]{ m_websocket_server.run(); });
     std::thread http_server_thread([this]{ m_http_server.run(); });
 
@@ -50,6 +55,8 @@ public:
 
   void stop() const
   {
+    m_log.info("Stopping node");
+
     m_websocket_server.stop();
     m_http_server.stop();
   }
@@ -265,6 +272,8 @@ private:
 
   std::string const &m_name;
   boost::uuids::uuid m_uuid;
+
+  log::Logger m_log;
 
   Blockchain<> m_blockchain;
   mutable std::mutex m_blockchain_mtx;

@@ -36,7 +36,8 @@ class Node:
             '--websocket-host', self._websocket_host,
             '--websocket-port', str(self._websocket_port),
             '--http-host', self._http_host,
-            '--http-port', str(self._http_port)
+            '--http-port', str(self._http_port),
+            '--verbose'
         ]
 
         self._process = subprocess.Popen(args)

@@ -59,16 +59,12 @@ void run_node()
 {
   assert(node);
 
-  std::cout << "Running node" << std::endl;
-
   node->run();
 }
 
 void stop_node(int)
 {
   assert(node);
-
-  std::cout << "Stopping node" << std::endl;
 
   node->stop();
 }

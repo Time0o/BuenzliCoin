@@ -4,9 +4,10 @@ project(BuenzliMuenzli LANGUAGES CXX)
 
 include(CTest)
 
-find_package(Boost 1.67.0 COMPONENTS program_options REQUIRED)
+find_package(Boost 1.67.0 COMPONENTS log_setup log program_options REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
+find_package(fmt REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(pybind11 REQUIRED)
 find_program(PYTHON python3 REQUIRED)
@@ -18,14 +19,18 @@ macro(bm_config target)
 
   target_link_libraries(${target} PRIVATE
     Boost::boost
+    Boost::log_setup
+    Boost::log
     Boost::program_options
     OpenSSL::SSL
     Threads::Threads
+    fmt::fmt
     nlohmann_json::nlohmann_json)
 endmacro()
 
 # Node binary.
 add_executable(node
+  src/log.cc
   src/node.cc
   src/web/http_server.cc
   src/web/websocket_client.cc
