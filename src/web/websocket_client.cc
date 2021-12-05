@@ -73,6 +73,14 @@ public:
     if (m_send_queue.size() > 1)
       return;
 
+    write();
+  }
+
+private:
+  void write()
+  {
+    auto this_ { shared_from_this() };
+
     auto const &[request_, cb_] = m_send_queue.front();
 
     m_stream.async_write(
@@ -86,12 +94,18 @@ public:
       });
   }
 
-private:
   void on_write(callback cb)
   {
     auto this_ { shared_from_this() };
 
     m_send_queue.pop();
+
+    read(std::move(cb));
+  }
+
+  void read(callback cb)
+  {
+    auto this_ { shared_from_this() };
 
     m_stream.async_read(
       m_buffer,
@@ -135,19 +149,8 @@ private:
     cb(status, answer);
 
     // XXX Allow multiple writes to be "in flight" concurrently?
-    if (!m_send_queue.empty()) {
-      auto const &[request_, cb_] = m_send_queue.front();
-
-      m_stream.async_write(
-        buffer(request_.dump()),
-        [this_, cb_ = std::move(cb_)](error_code ec, std::size_t)
-        {
-          if (ec)
-            std::cerr << ec.message() << std::endl;
-          else
-            this_->on_write(std::move(cb_));
-        });
-    }
+    if (!m_send_queue.empty())
+      write();
   }
 
 private:
