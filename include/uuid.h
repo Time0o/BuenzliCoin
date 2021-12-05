@@ -6,7 +6,7 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
-namespace bm::uuid
+namespace bc::uuid
 {
 
 class UUID
@@ -30,4 +30,4 @@ private:
   boost::uuids::uuid m_uuid;
 };
 
-} // end namespace bm::uuid
+} // end namespace bc::uuid

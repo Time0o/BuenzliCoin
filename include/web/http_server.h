@@ -12,7 +12,7 @@
 
 #include "json.h"
 
-namespace bm
+namespace bc
 {
 
 class HTTPServer
@@ -58,4 +58,4 @@ private:
   std::unique_ptr<Context> m_context;
 };
 
-} // end namespace bm
+} // end namespace bc

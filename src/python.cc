@@ -10,7 +10,7 @@
 namespace py = pybind11;
 using namespace py::literals;
 
-using namespace bm;
+using namespace bc;
 
 PYBIND11_MODULE(bc, m)
 {

@@ -15,7 +15,7 @@
 #include "web/websocket_peer.h"
 #include "web/websocket_server.h"
 
-namespace bm
+namespace bc
 {
 
 Node::Node(std::string const &name,
@@ -371,4 +371,4 @@ void Node::request_all_blocks(std::size_t peer_id)
     });
 }
 
-} // end namespace bm
+} // end namespace bc

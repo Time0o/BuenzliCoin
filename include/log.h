@@ -9,7 +9,7 @@
 
 #include "format.h"
 
-namespace bm::log
+namespace bc::log
 {
 
 enum LogLevel
@@ -61,4 +61,4 @@ private:
   std::string m_prefix;
 };
 
-} // end namespace bm::log
+} // end namespace bc::log

@@ -15,7 +15,7 @@
 #include "hash.h"
 #include "json.h"
 
-namespace bm
+namespace bc
 {
 
 template<typename HASHER = SHA256Hasher>
@@ -330,4 +330,4 @@ private:
   mutable std::mutex m_mtx;
 };
 
-} // end namespace bm
+} // end namespace bc

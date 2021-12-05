@@ -8,7 +8,7 @@
 
 #include "json.h"
 
-namespace bm
+namespace bc
 {
 
 class WebSocketClient
@@ -43,4 +43,4 @@ private:
   std::shared_ptr<Connection> m_connection;
 };
 
-} // end namespace bm
+} // end namespace bc

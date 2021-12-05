@@ -13,7 +13,7 @@
 #include "web/websocket_peer.h"
 #include "web/websocket_server.h"
 
-namespace bm
+namespace bc
 {
 
 class Node
@@ -69,4 +69,4 @@ private:
   HTTPServer m_http_server;
 };
 
-} // end namespace bm
+} // end namespace bc

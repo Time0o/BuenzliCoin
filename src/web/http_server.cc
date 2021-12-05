@@ -21,7 +21,7 @@
 using namespace boost::asio;
 using namespace boost::beast;
 
-namespace bm {
+namespace bc {
 
 struct HTTPServer::Context
 {
@@ -272,4 +272,4 @@ void HTTPServer::stop() const
   m_context->ioc.stop();
 }
 
-} // end namespace bm
+} // end namespace bc

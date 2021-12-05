@@ -15,7 +15,7 @@
 using namespace boost::asio;
 using namespace boost::beast;
 
-namespace bm
+namespace bc
 {
 
 struct HTTPClient::Context
@@ -104,4 +104,4 @@ std::pair<HTTPClient::status, std::string> HTTPClient::send_sync(
   return { response.result(), response.body() };
 }
 
-} // end namespace bm
+} // end namespace bc

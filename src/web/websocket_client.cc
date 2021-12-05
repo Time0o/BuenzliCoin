@@ -18,7 +18,7 @@
 using namespace boost::asio;
 using namespace boost::beast;
 
-namespace bm
+namespace bc
 {
 
 struct WebSocketClient::Context
@@ -208,4 +208,4 @@ void WebSocketClient::run() const
   m_context->ioc.restart();
 }
 
-} // end namespace bm
+} // end namespace bc

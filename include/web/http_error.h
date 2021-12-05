@@ -5,7 +5,7 @@
 
 #include "http_server.h"
 
-namespace bm
+namespace bc
 {
 
 class HTTPError : public std::runtime_error
@@ -23,4 +23,4 @@ private:
   HTTPServer::status m_status;
 };
 
-} // end namespace bm
+} // end namespace bc

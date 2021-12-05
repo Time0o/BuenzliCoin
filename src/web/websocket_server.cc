@@ -17,7 +17,7 @@
 using namespace boost::asio;
 using namespace boost::beast;
 
-namespace bm
+namespace bc
 {
 
 struct WebSocketServer::Context
@@ -222,4 +222,4 @@ std::pair<bool, json> WebSocketServer::handle(std::string const &target,
   return { true, it->second(data) };
 }
 
-} // end namespace bm
+} // end namespace bc

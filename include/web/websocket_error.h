@@ -3,7 +3,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace bm
+namespace bc
 {
 
 struct WebSocketError : public std::runtime_error
@@ -13,4 +13,4 @@ struct WebSocketError : public std::runtime_error
   {}
 };
 
-} // end namespace bm
+} // end namespace bc

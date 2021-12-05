@@ -12,7 +12,7 @@
 #include <openssl/evp.h>
 #include <openssl/err.h>
 
-namespace bm
+namespace bc
 {
 
 template<unsigned DIGEST_LEN>
@@ -91,4 +91,4 @@ struct SHA256Hasher : Hasher<32u>
   }
 };
 
-} // end namespace bm
+} // end namespace bc

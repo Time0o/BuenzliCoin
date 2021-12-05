@@ -3,7 +3,7 @@
 #include <chrono>
 #include <cstdint>
 
-namespace bm::clock
+namespace bc::clock
 {
 
 using Clock = std::chrono::system_clock;
@@ -25,4 +25,4 @@ inline TimePoint from_time_since_epoch(uint64_t tse)
   return TimePoint { TimePrecision { tse } };
 }
 
-} // end namespace bm::clock
+} // end namespace bc::clock

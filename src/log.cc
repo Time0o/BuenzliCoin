@@ -12,7 +12,7 @@
 
 namespace trivial = boost::log::trivial;
 
-namespace bm::log
+namespace bc::log
 {
 
 namespace
@@ -67,4 +67,4 @@ void Logger::log(LogLevel level, std::string const &msg) const
   }
 }
 
-} // end namespace bm::log
+} // end namespace bc::log

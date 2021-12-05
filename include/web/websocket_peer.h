@@ -8,7 +8,7 @@
 
 #include "websocket_client.h"
 
-namespace bm
+namespace bc
 {
 
 class WebSocketPeer
@@ -100,4 +100,4 @@ private:
   mutable std::mutex m_mtx;
 };
 
-} // end namespace bm
+} // end namespace bc
