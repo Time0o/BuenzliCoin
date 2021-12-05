@@ -22,10 +22,10 @@ namespace bm
 class Node
 {
 public:
-  explicit Node(std::string const &websocket_addr,
-                uint16_t websocket_port,
-                std::string const &http_addr,
-                uint16_t http_port)
+  Node(std::string const &websocket_addr,
+       uint16_t websocket_port,
+       std::string const &http_addr,
+       uint16_t http_port)
   : m_websocket_server { websocket_addr, websocket_port },
     m_http_server { http_addr, http_port }
   {
