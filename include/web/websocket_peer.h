@@ -6,6 +6,8 @@
 #include <string>
 #include <utility>
 
+#include "websocket_client.h"
+
 namespace bm
 {
 

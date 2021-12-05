@@ -31,6 +31,7 @@ endmacro()
 # Node binary.
 add_executable(node
   src/log.cc
+  src/main.cc
   src/node.cc
   src/web/http_server.cc
   src/web/websocket_client.cc
