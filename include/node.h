@@ -8,13 +8,10 @@
 #include <unordered_map>
 #include <utility>
 
-#include <boost/uuid/uuid.hpp>
-#include <boost/uuid/uuid_generators.hpp>
-#include <boost/uuid/uuid_io.hpp>
-
 #include "blockchain.h"
 #include "json.h"
 #include "log.h"
+#include "uuid.h"
 #include "web/http_server.h"
 #include "web/websocket_client.h"
 #include "web/websocket_error.h"
@@ -33,8 +30,7 @@ public:
        std::string const &http_addr,
        uint16_t http_port)
   : m_name { name },
-    m_uuid { boost::uuids::random_generator()() },
-    m_log { "(node {}:{})", m_name, boost::uuids::to_string(m_uuid) },
+    m_log { "[{}] [{}]", m_name, m_uuid.to_string(true) },
     m_websocket_server { websocket_addr, websocket_port },
     m_http_server { http_addr, http_port }
   {
@@ -271,7 +267,7 @@ private:
   }
 
   std::string const &m_name;
-  boost::uuids::uuid m_uuid;
+  uuid::UUID m_uuid;
 
   log::Logger m_log;
 

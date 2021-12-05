@@ -4,7 +4,7 @@
 
 #include <signal.h>
 
-namespace bm::util
+namespace bm::nix
 {
 
 void on_termination(void (*func)(int))
@@ -16,4 +16,4 @@ void on_termination(void (*func)(int))
   sigaction(SIGTERM, &sa, nullptr);
 }
 
-} // end namespace bm::util
+} // end namespace bm::nix

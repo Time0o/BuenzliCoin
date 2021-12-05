@@ -8,8 +8,9 @@
 
 #include <boost/program_options.hpp>
 
+#include "log.h"
+#include "nix.h"
 #include "node.h"
-#include "util.h"
 
 namespace po = boost::program_options;
 
@@ -24,7 +25,8 @@ void parse_options(int argc,
                    std::string &websocket_host,
                    uint16_t &websocket_port,
                    std::string &http_host,
-                   uint16_t &http_port)
+                   uint16_t &http_port,
+                   bool verbose)
 {
   po::variables_map vs;
 
@@ -34,7 +36,8 @@ void parse_options(int argc,
     ("websocket-host", po::value<std::string>(&websocket_host)->required(), "websocket server ip")
     ("websocket-port", po::value<uint16_t>(&websocket_port)->required(), "websocket server port")
     ("http-host", po::value<std::string>(&http_host)->required(), "http server ip")
-    ("http-port", po::value<uint16_t>(&http_port)->required(), "http server port");
+    ("http-port", po::value<uint16_t>(&http_port)->required(), "http server port")
+    ("verbose", po::bool_switch(&verbose)->default_value(false), "verbose log output");
 
   po::store(po::parse_command_line(argc, argv, options), vs);
   po::notify(vs);
@@ -81,6 +84,7 @@ int main(int argc, char **argv)
     uint16_t websocket_port;
     std::string http_host;
     uint16_t http_port;
+    bool verbose;
 
     parse_options(argc,
                   argv,
@@ -88,7 +92,10 @@ int main(int argc, char **argv)
                   websocket_host,
                   websocket_port,
                   http_host,
-                  http_port);
+                  http_port,
+                  verbose);
+
+    log::init(verbose ? log::DEBUG : log::INFO);
 
     create_node(name,
                 websocket_host,
@@ -96,7 +103,7 @@ int main(int argc, char **argv)
                 http_host,
                 http_port);
 
-    util::on_termination(stop_node);
+    nix::on_termination(stop_node);
 
     run_node();
 
