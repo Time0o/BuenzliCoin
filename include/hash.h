@@ -33,6 +33,23 @@ public:
   bool operator==(Digest const &other) const
   { return m_arr == other.m_arr; }
 
+  std::size_t difficulty() const
+  {
+    std::size_t difficulty { 0 };
+
+    for (auto const &byte : m_arr) {
+      uint8_t mask = 0x80;
+      for (uint8_t mask { 0x80 }; mask; mask >>= 1) {
+        if ((byte & mask) == 0x00)
+          ++difficulty;
+        else
+          return difficulty;
+      }
+    }
+
+    return difficulty;
+  }
+
   std::string to_string() const
   {
     std::stringstream ss;
