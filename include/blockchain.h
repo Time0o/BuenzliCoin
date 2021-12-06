@@ -3,7 +3,6 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <iomanip>
 #include <mutex>
 #include <optional>
 #include <sstream>
@@ -24,22 +23,17 @@ class Block
   template<typename HASHER_>
   friend class Blockchain;
 
-  using digest = typename HASHER::digest;
+  using digest = HASHER::digest;
 
 public:
   explicit Block(std::string const &data,
                  std::optional<Block> const &last = std::nullopt)
-  : m_data(data),
-    m_timestamp(clock::now())
-  {
-    if (last) {
-      m_index = last->m_index + 1;
-
-      m_hash_prev = last->m_hash;
-    }
-
-    m_hash = hash();
-  }
+  : m_data { data },
+    m_timestamp { clock::now() },
+    m_index { last ? last->m_index + 1 : 0 },
+    m_hash_prev { last ? std::optional<digest> { last->m_hash } : std::nullopt },
+    m_hash { hash() }
+  {}
 
   std::string data() const
   { return m_data; }
@@ -71,10 +65,10 @@ public:
 
     j["index"] = m_index;
 
-    j["hash"] = hash_to_string(m_hash);
+    j["hash"] = m_hash.to_string();
 
     if (m_hash_prev)
-      j["hash_prev"] = hash_to_string(*m_hash_prev);
+      j["hash_prev"] = m_hash_prev->to_string();
 
     return j;
   }
@@ -86,11 +80,11 @@ public:
 
     auto index { j["index"].get<uint64_t>() };
 
-    auto hash { hash_from_string(j["hash"].get<std::string>()) };
+    auto hash { digest::from_string(j["hash"].get<std::string>()) };
 
     std::optional<digest> hash_prev;
     if (j.count("hash_prev"))
-        hash_prev = hash_from_string(j["hash_prev"].get<std::string>());
+        hash_prev = digest::from_string(j["hash_prev"].get<std::string>());
 
      return Block { data, timestamp, index, hash, hash_prev };
   }
@@ -117,49 +111,10 @@ private:
 
     ss << m_index;
 
-    if (m_hash_prev) {
-      for (auto byte : *m_hash_prev)
-        ss << byte;
-    }
+    if (m_hash_prev)
+      ss << m_hash_prev->to_string();
 
     return HASHER::instance().hash(ss.str());
-  }
-
-  static std::string hash_to_string(digest const &hash)
-  {
-    std::stringstream ss;
-
-    ss << std::hex << std::setfill('0');
-
-    for (auto const &byte : hash)
-      ss << std::setw(2) << static_cast<int>(byte);
-
-    return ss.str();
-  }
-
-  static digest hash_from_string(std::string const &str)
-  {
-    if (str.size() != std::tuple_size_v<digest> * 2)
-      throw std::invalid_argument("invalid hash string");
-
-    auto char_to_nibble = [](char c){
-      if (c >= '0' && c <= '9')
-        return c - '0';
-
-      if (c >= 'a' && c <= 'f')
-        return c - 'a' + 10;
-
-      if (c >= 'A' && c <= 'F')
-        return c - 'A' + 10;
-
-      throw std::invalid_argument("invalid hash string");
-    };
-
-    digest d;
-    for (std::size_t i = 0; i < d.size(); ++i)
-      d[i] = (char_to_nibble(str[2 * i]) << 4) | char_to_nibble(str[2 * i + 1]);
-
-    return d;
   }
 
   std::string m_data;

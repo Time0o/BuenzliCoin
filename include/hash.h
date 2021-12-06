@@ -4,10 +4,15 @@
 #include <array>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
+#include <iomanip>
 #include <iterator>
 #include <new>
+#include <sstream>
 #include <stdexcept>
 #include <string>
+#include <tuple>
+#include <utility>
 
 #include <openssl/evp.h>
 #include <openssl/err.h>
@@ -15,11 +20,65 @@
 namespace bc
 {
 
-template<unsigned DIGEST_LEN>
+template<std::size_t DIGEST_LEN>
+class Digest
+{
+public:
+  using array = std::array<uint8_t, DIGEST_LEN>;
+
+  Digest(array arr)
+  : m_arr { std::move(arr) }
+  {}
+
+  bool operator==(Digest const &other) const
+  { return m_arr == other.m_arr; }
+
+  std::string to_string() const
+  {
+    std::stringstream ss;
+
+    ss << std::hex << std::setfill('0');
+
+    for (auto const &byte : m_arr)
+      ss << std::setw(2) << static_cast<int>(byte);
+
+    return ss.str();
+  }
+
+  static Digest from_string(std::string const &str)
+  {
+    if (str.size() != std::tuple_size_v<array> * 2)
+      throw std::invalid_argument("invalid digest string");
+
+    auto char_to_nibble = [](char c){
+      if (c >= '0' && c <= '9')
+        return c - '0';
+
+      if (c >= 'a' && c <= 'f')
+        return c - 'a' + 10;
+
+      if (c >= 'A' && c <= 'F')
+        return c - 'A' + 10;
+
+      throw std::invalid_argument("invalid digest string");
+    };
+
+    array d;
+    for (std::size_t i = 0; i < d.size(); ++i)
+      d[i] = (char_to_nibble(str[2 * i]) << 4) | char_to_nibble(str[2 * i + 1]);
+
+    return Digest { d };
+  }
+
+private:
+  array m_arr;
+};
+
+template<std::size_t DIGEST_LEN>
 class Hasher
 {
 public:
-  using digest = std::array<unsigned char, DIGEST_LEN>;
+  using digest = Digest<DIGEST_LEN>;
 
 protected:
   Hasher(EVP_MD const *(*md)())
@@ -41,7 +100,7 @@ public:
 
   digest hash(std::string const &msg) const
   {
-    unsigned char d_c[DIGEST_LEN];
+    uint8_t d_c[DIGEST_LEN];
     unsigned d_c_len = 0;
 
     if (EVP_DigestInit_ex(m_mdctx, m_md(), nullptr) != 1)
@@ -55,10 +114,10 @@ public:
 
     EVP_MD_CTX_reset(m_mdctx);
 
-    digest d;
+    typename digest::array d;
     std::copy(std::begin(d_c), std::end(d_c), d.begin());
 
-    return d;
+    return digest { d };
 
   error:
     EVP_MD_CTX_reset(m_mdctx);
