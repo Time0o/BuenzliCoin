@@ -135,14 +135,11 @@ public:
 
   Blockchain() = default;
 
-  Blockchain(Blockchain const &&other)
-  {
-    std::scoped_lock lock { m_mtx, other.m_mtx };
+  Blockchain(Blockchain &&other)
+  : m_blocks { std::move(other.m_blocks) }
+  {}
 
-    m_blocks = std::move(other.m_blocks);
-  }
-
-  void operator=(Blockchain const &&other)
+  void operator=(Blockchain &&other)
   {
     std::scoped_lock lock { m_mtx, other.m_mtx };
 
