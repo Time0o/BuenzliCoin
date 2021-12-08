@@ -71,6 +71,9 @@ if(BUILD_TESTING)
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
   endmacro()
 
+  bm_unit_test(difficulty_test
+    test/unit/difficulty_test.cc)
+
   bm_unit_test(hash_test
     test/unit/hash_test.cc)
 

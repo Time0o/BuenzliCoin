@@ -7,7 +7,8 @@ namespace bc::clock
 {
 
 using Clock = std::chrono::system_clock;
-using TimePrecision = std::chrono::milliseconds;
+using TimePrecision = std::chrono::seconds;
+using TimeInterval = std::chrono::seconds;
 using TimePoint = std::chrono::time_point<Clock, TimePrecision>;
 
 inline auto now()
