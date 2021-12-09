@@ -105,7 +105,7 @@ std::pair<HTTPServer::status, json> Node::handle_add_block(json const &data)
   m_log.info("Running 'add_block' handler");
 
   try {
-    m_blockchain.append(data.get<std::string>());
+    m_blockchain.construct_next_block(data.get<std::string>());
 
   } catch (std::exception const &e) {
     std::string err { "Malformed 'add_block' request: '" + data.dump() + "'" };
@@ -249,11 +249,11 @@ json Node::handle_receive_latest_block(json const &data)
   } else if (block->index() == m_blockchain.length()) {
     if (m_blockchain.empty() && block->is_genesis()) {
       m_log.info("Appending new genesis block");
-      m_blockchain.append(std::move(*block));
+      m_blockchain.append_next_block(std::move(*block));
 
     } else if (block->is_successor_of(m_blockchain.latest_block())) {
       m_log.info("Appending next block");
-      m_blockchain.append(std::move(*block));
+      m_blockchain.append_next_block(std::move(*block));
 
     } else {
       m_log.info("Ignoring block (not a valid successor)");
