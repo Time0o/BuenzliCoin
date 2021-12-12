@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "clock.h"
-#include "config.h"
 #include "difficulty.h"
 #include "hash.h"
 #include "json.h"
@@ -165,14 +164,7 @@ public:
   using value_type = Block<HASHER>;
   using const_iterator = typename std::vector<Block<HASHER>>::const_iterator;
 
-  Blockchain()
-#ifdef PROOF_OF_WORK
-  : m_difficulty_adjuster { config::BLOCK_GEN_INTERVAL,
-                            config::BLOCK_GEN_DIFFICULTY_INIT,
-                            config::BLOCK_GEN_DIFFICULTY_ADJUST_AFTER,
-                            config::BLOCK_GEN_DIFFICULTY_ADJUST_FACTOR_LIMIT }
-#endif // PROOF_OF_WORK
-  {}
+  Blockchain() = default;
 
   Blockchain(Blockchain &&other)
   : m_blocks { std::move(other.m_blocks) }

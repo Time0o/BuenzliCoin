@@ -14,7 +14,7 @@ struct Config
   // Interval after which a new block should be mined.
   clock::TimeInterval block_gen_interval { 10000 };
   // Initial block generation difficulty.
-  std::size_t block_gen_difficulty_init { 2 };
+  double block_gen_difficulty_init { 2 };
   // Number of blocks after which the block generation difficulty is adjusted.
   std::size_t block_gen_difficulty_adjust_after { 10 };
   // Block generation difficulty adjustment limit.
@@ -40,7 +40,7 @@ struct Config
 
         if (t_block_gen.contains("difficulty_init"))
           cfg.block_gen_difficulty_init =
-            *t_block_gen["difficulty_init"].value<std::size_t>();
+            *t_block_gen["difficulty_init"].value<double>();
 
         if (t_block_gen.contains("difficulty_adjust_after"))
           cfg.block_gen_difficulty_adjust_after =

@@ -1,8 +1,10 @@
 #pragma once
 
+#include <cmath>
 #include <cstdint>
 
 #include "clock.h"
+#include "config.h"
 
 namespace bc
 {
@@ -10,62 +12,57 @@ namespace bc
 class DifficultyAdjuster
 {
 public:
-  DifficultyAdjuster(clock::TimeInterval target,
-                     std::size_t difficulty_init,
-                     std::size_t difficulty_adjust_after,
-                     double difficulty_adjust_factor_limit)
-  : m_target { target },
-    m_difficulty { difficulty_init },
-    m_difficulty_adjust_after { difficulty_adjust_after },
-    m_difficulty_adjust_factor_limit { difficulty_adjust_factor_limit }
+  DifficultyAdjuster()
+  : m_difficulty_raw { config().block_gen_difficulty_init }
+  , m_difficulty_log2 { static_cast<std::size_t>(std::log2(m_difficulty_raw)) }
   {}
 
   std::size_t difficulty() const
-  { return m_difficulty; }
+  { return m_difficulty_log2; }
 
   void adjust(clock::TimePoint timestamp)
   {
-    if (m_counter == 0) {
-      m_difficulty_adjust_timestamp = timestamp;
+    auto interval { config().block_gen_interval };
+    auto adjust_after { config().block_gen_difficulty_adjust_after };
+    auto adjust_factor_limit { config().block_gen_difficulty_adjust_factor_limit };
 
-    } else if (m_counter % m_difficulty_adjust_after == 0) {
+    if (m_counter == 0) {
+      m_timestamp = timestamp;
+
+    } else if (m_counter % adjust_after == 0) {
+
       // Time that should have ideally elapsed between the last difficulty
       // adjustment and the generation of the most current block.
-      auto gen_time_ref { m_target * m_difficulty_adjust_after };
+      auto interval_total_expected { interval * adjust_after };
 
       // Time that has actually elapsed.
-      auto gen_time { timestamp - m_difficulty_adjust_timestamp };
+      auto interval_total_actual { timestamp - m_timestamp };
 
-      auto adjust_factor { static_cast<double>(gen_time_ref.count()) /
-                           static_cast<double>(gen_time.count()) };
+      auto adjust_factor {
+        static_cast<double>(interval_total_expected.count()) /
+        static_cast<double>(interval_total_actual.count()) };
 
-      if (adjust_factor < 1.0 / m_difficulty_adjust_factor_limit)
-        adjust_factor = 1.0 / m_difficulty_adjust_factor_limit;
-      else if (adjust_factor > m_difficulty_adjust_factor_limit)
-        adjust_factor = m_difficulty_adjust_factor_limit;
+      if (adjust_factor < 1.0 / adjust_factor_limit)
+        adjust_factor = 1.0 / adjust_factor_limit;
+      else if (adjust_factor > adjust_factor_limit)
+        adjust_factor = adjust_factor_limit;
 
-      m_difficulty *= adjust_factor;
+      m_difficulty_raw *= adjust_factor;
+      m_difficulty_log2 = static_cast<std::size_t>(std::log2(m_difficulty_raw));
 
-      m_difficulty_adjust_timestamp = timestamp;
+      m_timestamp = timestamp;
     }
 
     ++m_counter;
   }
 
 private:
-  // Time it should take to generate a single block.
-  clock::TimeInterval m_target;
-
-  // Current difficulty.
-  std::size_t m_difficulty;;
-  // Number of blocks after which the difficulty should be readjusted.
-  std::size_t m_difficulty_adjust_after;
-  // Time point at which the difficulty was last adjusted.
-  clock::TimePoint m_difficulty_adjust_timestamp;
-  // Limits the maximum possible difficulty adjustment.
-  double m_difficulty_adjust_factor_limit;
+  double m_difficulty_raw;
+  std::size_t m_difficulty_log2;
 
   std::size_t m_counter { 0 };
+
+  clock::TimePoint m_timestamp;
 };
 
 } // end namespace bc
