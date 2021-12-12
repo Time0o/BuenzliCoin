@@ -8,6 +8,7 @@
 
 #include <boost/program_options.hpp>
 
+#include "config.h"
 #include "log.h"
 #include "nix.h"
 #include "node.h"
@@ -22,6 +23,7 @@ namespace
 void parse_options(int argc,
                    char **argv,
                    std::string &name,
+                   std::string &config_,
                    std::string &websocket_host,
                    uint16_t &websocket_port,
                    std::string &http_host,
@@ -33,6 +35,7 @@ void parse_options(int argc,
   po::options_description options { "Node options" };
   options.add_options()
     ("name", po::value<std::string>(&name)->required(), "node name")
+    ("config", po::value<std::string>(&config_)->required(), "configuration file")
     ("websocket-host", po::value<std::string>(&websocket_host)->required(), "websocket server ip")
     ("websocket-port", po::value<uint16_t>(&websocket_port)->required(), "websocket server port")
     ("http-host", po::value<std::string>(&http_host)->required(), "http server ip")
@@ -80,6 +83,7 @@ int main(int argc, char **argv)
 
   try {
     std::string name;
+    std::string config_;
     std::string websocket_host;
     uint16_t websocket_port;
     std::string http_host;
@@ -89,6 +93,7 @@ int main(int argc, char **argv)
     parse_options(argc,
                   argv,
                   name,
+                  config_,
                   websocket_host,
                   websocket_port,
                   http_host,
@@ -96,6 +101,8 @@ int main(int argc, char **argv)
                   verbose);
 
     log::init(verbose ? log::DEBUG : log::INFO);
+
+    config() = Config::from_toml(config_);
 
     create_node(name,
                 websocket_host,

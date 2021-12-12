@@ -16,12 +16,14 @@ class Node:
 
     def __init__(self,
                  name,
+                 config='config/default.toml',
                  websocket_host='127.0.0.1',
                  websocket_port=DEFAULT_WEBSOCKET_PORT,
                  http_host='127.0.0.1',
                  http_port=DEFAULT_HTTP_PORT):
 
         self._name = name
+        self._config = config
         self._websocket_host = websocket_host
         self._websocket_port = websocket_port
         self._http_host = http_host
@@ -33,6 +35,7 @@ class Node:
         args = [
             os.getenv('NODE'),
             '--name', self._name,
+            '--config', self._config,
             '--websocket-host', self._websocket_host,
             '--websocket-port', str(self._websocket_port),
             '--http-host', self._http_host,
