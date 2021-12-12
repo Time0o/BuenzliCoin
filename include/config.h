@@ -12,13 +12,13 @@ namespace bc
 struct Config
 {
   // Interval after which a new block should be mined.
-  clock::TimeInterval block_gen_interval { 10 };
+  clock::TimeInterval block_gen_interval { 10000 };
   // Initial block generation difficulty.
-  std::size_t block_gen_difficulty_init { 1 };
+  std::size_t block_gen_difficulty_init { 2 };
   // Number of blocks after which the block generation difficulty is adjusted.
   std::size_t block_gen_difficulty_adjust_after { 10 };
   // Block generation difficulty adjustment limit.
-  double block_gen_difficulty_adjust_factor_limit { 4.0 };
+  double block_gen_difficulty_adjust_factor_limit { 16 };
 
   // XXX to_toml
 
