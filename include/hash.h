@@ -24,6 +24,8 @@ template<std::size_t DIGEST_LEN>
 class Digest
 {
 public:
+  static constexpr auto length { DIGEST_LEN };
+
   using array = std::array<uint8_t, DIGEST_LEN>;
 
   Digest(array arr)

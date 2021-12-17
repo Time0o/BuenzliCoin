@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -64,6 +65,8 @@ public:
 
   void adjust_difficulty(std::size_t difficulty)
   {
+    difficulty = std::min(difficulty, digest::length * 8);
+
     for (;;) {
       m_timestamp = clock::now();
 
