@@ -5,6 +5,7 @@
 #include <pybind11_json/pybind11_json.hpp>
 
 #include "blockchain.h"
+#include "config.h"
 #include "json.h"
 
 namespace py = pybind11;
@@ -19,6 +20,7 @@ PYBIND11_MODULE(bc, m)
     .def("data", &Block<>::data)
     .def("timestamp", &Block<>::timestamp)
     .def("index", &Block<>::index)
+    .def("hash", [](Block<> const &self){ return self.hash().to_string(); })
     .def("valid", &Block<>::valid)
     .def("is_genesis", &Block<>::is_genesis)
     .def("is_successor_of", &Block<>::is_successor_of, "prev"_a)
@@ -35,4 +37,16 @@ PYBIND11_MODULE(bc, m)
     .def("valid", &Blockchain<>::valid)
     .def("to_json", &Blockchain<>::to_json)
     .def_static("from_json", &Blockchain<>::from_json, "j"_a);
+
+  py::class_<Config>(m, "Config")
+    .def_readwrite("block_gen_interval",
+                   &Config::block_gen_interval)
+    .def_readwrite("block_gen_difficulty_init",
+                   &Config::block_gen_difficulty_init)
+    .def_readwrite("block_gen_difficulty_adjust_after",
+                   &Config::block_gen_difficulty_adjust_after)
+    .def_readwrite("block_gen_difficulty_adjust_factor_limit",
+                   &Config::block_gen_difficulty_adjust_factor_limit);
+
+   m.def("config", &config, py::return_value_policy::reference);
 }

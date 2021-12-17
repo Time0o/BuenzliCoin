@@ -20,7 +20,8 @@ class Node:
                  websocket_host='127.0.0.1',
                  websocket_port=DEFAULT_WEBSOCKET_PORT,
                  http_host='127.0.0.1',
-                 http_port=DEFAULT_HTTP_PORT):
+                 http_port=DEFAULT_HTTP_PORT,
+                 proof_of_work=False):
 
         self._name = name
         self._config = config
@@ -28,12 +29,13 @@ class Node:
         self._websocket_port = websocket_port
         self._http_host = http_host
         self._http_port = http_port
+        self._proof_of_work = proof_of_work
 
         self._api_url = f'{http_host}:{http_port}'
 
     def run(self):
         args = [
-            os.getenv('NODE'),
+            os.getenv('NODE_POW' if self._proof_of_work else 'NODE_NAIVE'),
             '--name', self._name,
             '--config', self._config,
             '--websocket-host', self._websocket_host,
@@ -74,24 +76,14 @@ class Node:
         return response.json()
 
 
-class SingleNodeContext:
-    def __init__(self, node):
-        self._node = node
+def make_node(node_id, *args, **kwargs):
+    return Node(name=f'node{node_id}',
+                websocket_port=Node.DEFAULT_WEBSOCKET_PORT + node_id * 2,
+                http_port=Node.DEFAULT_HTTP_PORT + node_id * 2,
+                *args,
+                **kwargs)
 
-    def __enter__(self):
-        self._node.run()
-
-        time.sleep(Node.SETUP_TIME)
-
-        return self._node
-
-    def __exit__(self, type, value, traceback):
-        self._node.stop()
-
-        time.sleep(Node.TEARDOWN_TIME)
-
-
-class MultiNodeContext:
+class RunNodesContext:
     def __init__(self, nodes):
         self._nodes = nodes
 
@@ -100,6 +92,9 @@ class MultiNodeContext:
             node.run()
 
         time.sleep(Node.SETUP_TIME)
+
+        if len(self._nodes) == 1:
+            return self._nodes[0]
 
         return self._nodes
 
@@ -110,15 +105,10 @@ class MultiNodeContext:
         time.sleep(Node.TEARDOWN_TIME)
 
 
-def make_node(node_id):
-    return Node(name=f'node{node_id}',
-                websocket_port=Node.DEFAULT_WEBSOCKET_PORT + node_id * 2,
-                http_port=Node.DEFAULT_HTTP_PORT + node_id * 2)
+def run_nodes(num_nodes, *args, **kwargs):
+    nodes = [
+        make_node(node_id=i, *args, **kwargs)
+        for i in range(1, num_nodes + 1)
+    ]
 
-
-def run_node():
-    return SingleNodeContext(make_node(node_id=0))
-
-
-def run_nodes(num_nodes):
-    return MultiNodeContext([make_node(node_id=i) for i in range(1, num_nodes + 1)])
+    return RunNodesContext(nodes)

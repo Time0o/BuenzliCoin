@@ -35,7 +35,7 @@ public:
     m_nonce { 0 },
     m_index { last ? last->m_index + 1 : 0 },
     m_hash_prev { last ? std::optional<digest> { last->m_hash } : std::nullopt },
-    m_hash { hash() }
+    m_hash { determine_hash() }
   {}
 
   std::string data() const
@@ -47,8 +47,11 @@ public:
   uint64_t index() const
   { return m_index; }
 
+  digest hash() const
+  { return m_hash; }
+
   bool valid() const
-  { return m_hash == hash(); }
+  { return m_hash == determine_hash(); }
 
   bool is_genesis() const
   { return m_index == 0 && !m_hash_prev; }
@@ -70,7 +73,7 @@ public:
     for (;;) {
       m_timestamp = clock::now();
 
-      auto maybe_hash { hash() };
+      auto maybe_hash { determine_hash() };
       if (maybe_hash.difficulty() >= difficulty) {
         m_hash = maybe_hash;
         break;
@@ -136,7 +139,7 @@ private:
     m_hash_prev(hash_prev)
   {}
 
-  digest hash() const
+  digest determine_hash() const
   {
     std::stringstream ss;
 
@@ -254,11 +257,14 @@ public:
       last_block = m_blocks.back();
 
     Block<HASHER> block { data, last_block };
+
 #ifdef PROOF_OF_WORK
+    m_difficulty_adjuster.adjust(block.timestamp());
+
     block.adjust_difficulty(difficulty());
 #endif // PROOF_OF_WORK
 
-    append_next_block(std::move(block));
+    m_blocks.emplace_back(std::move(block));
   }
 
   void append_next_block(Block<HASHER> block)
@@ -276,6 +282,9 @@ public:
 
 #ifdef PROOF_OF_WORK
     m_difficulty_adjuster.adjust(block.timestamp());
+
+    if (block.difficulty() < difficulty())
+      throw std::logic_error("attempted appending a block with invalid difficulty");
 #endif // PROOF_OF_WORK
 
     m_blocks.emplace_back(std::move(block));
@@ -336,7 +345,7 @@ private:
   DifficultyAdjuster m_difficulty_adjuster;
 #endif // PROOF_OF_WORK
 
-  mutable std::recursive_mutex m_mtx;
+  mutable std::mutex m_mtx;
 };
 
 } // end namespace bc

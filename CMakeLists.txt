@@ -29,7 +29,7 @@ macro(bm_config target)
 endmacro()
 
 # Node binary.
-add_executable(node
+add_executable(node_naive
   src/log.cc
   src/main.cc
   src/node.cc
@@ -37,7 +37,19 @@ add_executable(node
   src/web/websocket_client.cc
   src/web/websocket_server.cc)
 
-bm_config(node)
+bm_config(node_naive)
+
+add_executable(node_pow
+  src/log.cc
+  src/main.cc
+  src/node.cc
+  src/web/http_server.cc
+  src/web/websocket_client.cc
+  src/web/websocket_server.cc)
+
+target_compile_definitions(node_pow PRIVATE -DPROOF_OF_WORK)
+
+bm_config(node_pow)
 
 # Python bindings.
 pybind11_add_module(bc src/python.cc)
@@ -65,7 +77,8 @@ if(BUILD_TESTING)
   macro(bm_integration_test target)
     add_test(
       NAME ${target}
-      COMMAND ${CMAKE_COMMAND} -E env NODE=$<TARGET_FILE:node>
+      COMMAND ${CMAKE_COMMAND} -E env NODE_NAIVE=$<TARGET_FILE:node_naive>
+                                      NODE_POW=$<TARGET_FILE:node_pow>
                                       PYTHONPATH=$<TARGET_FILE_DIR:bc>
               ${PYTHON} ${ARGN}
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
@@ -89,4 +102,7 @@ if(BUILD_TESTING)
 
   bm_integration_test(blockchain_test
     test/integration/blockchain_test.py)
+
+  bm_integration_test(proof_of_work_test
+    test/integration/proof_of_work_test.py)
 endif()
