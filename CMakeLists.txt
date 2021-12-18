@@ -30,6 +30,7 @@ endmacro()
 
 # Node binary.
 add_executable(node_naive
+  src/config.cc
   src/log.cc
   src/main.cc
   src/node.cc
@@ -40,6 +41,7 @@ add_executable(node_naive
 bm_config(node_naive)
 
 add_executable(node_pow
+  src/config.cc
   src/log.cc
   src/main.cc
   src/node.cc
