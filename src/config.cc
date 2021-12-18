@@ -50,8 +50,11 @@ Config Config::from_toml(std::string const &filename)
 
   toml_for_table(t, "block_gen", [&cfg](auto const &t) {
     toml_assign<clock::TimeInterval::rep>(
-      cfg.block_gen_interval, t,
-      "interval");
+      cfg.block_gen_time_expected, t,
+      "time_expected");
+    toml_assign<clock::TimeInterval::rep>(
+      cfg.block_gen_time_max_delta, t,
+      "time_max_delta");
     toml_assign<double>(
       cfg.block_gen_difficulty_init, t,
       "difficulty_init");

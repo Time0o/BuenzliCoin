@@ -39,8 +39,10 @@ PYBIND11_MODULE(bc, m)
     .def_static("from_json", &Blockchain<>::from_json, "j"_a);
 
   py::class_<Config>(m, "Config")
-    .def_readwrite("block_gen_interval",
-                   &Config::block_gen_interval)
+    .def_readwrite("block_gen_time_expected",
+                   &Config::block_gen_time_expected)
+    .def_readwrite("block_gen_time_max_delta",
+                   &Config::block_gen_time_max_delta)
     .def_readwrite("block_gen_difficulty_init",
                    &Config::block_gen_difficulty_init)
     .def_readwrite("block_gen_difficulty_adjust_after",

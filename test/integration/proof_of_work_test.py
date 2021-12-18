@@ -14,7 +14,7 @@ class ProofOfWorkTest(TestCase):
     def setUpClass(cls):
         config = toml.load(cls.CONFIG)
 
-        cls._interval = timedelta(seconds=config['block_gen']['interval'])
+        cls._time_expected = timedelta(seconds=config['block_gen']['time_expected'])
         cls._difficulty_init = config['block_gen']['difficulty_init']
         cls._difficulty_adjust_after = config['block_gen']['difficulty_adjust_after']
         cls._difficulty_adjust_factor_limit = config['block_gen']['difficulty_adjust_factor_limit']
@@ -41,10 +41,11 @@ class ProofOfWorkTest(TestCase):
         blocks_adjust = blocks[-(2 * self._difficulty_adjust_after + 1):-self._difficulty_adjust_after]
         blocks_new = blocks[-self._difficulty_adjust_after:]
 
-        interval = blocks_adjust[-1].timestamp() - blocks_adjust[0].timestamp()
+        total_time_expected = len(blocks_adjust) * self._time_expected
+        total_time_actual = blocks_adjust[-1].timestamp() - blocks_adjust[0].timestamp()
 
         difficulty_adjust_factor = min(self._difficulty_adjust_factor_limit,
-                                       self._interval / interval)
+                                       total_time_expected / total_time_actual)
 
         self._difficulty_expected *= difficulty_adjust_factor
         self._difficulty_expected_log2 = floor(log2(self._difficulty_expected))

@@ -1,5 +1,5 @@
 [block_gen]
-interval = 500
+time_expected = 500
 difficulty_init = 2
 difficulty_adjust_after = 10
 difficulty_adjust_factor_limit = 16

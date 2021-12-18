@@ -22,7 +22,7 @@ public:
 
   void adjust(clock::TimePoint timestamp)
   {
-    auto interval { config().block_gen_interval };
+    auto time_expected { config().block_gen_time_expected };
     auto adjust_after { config().block_gen_difficulty_adjust_after };
     auto adjust_factor_limit { config().block_gen_difficulty_adjust_factor_limit };
 
@@ -33,14 +33,14 @@ public:
 
       // Time that should have ideally elapsed between the last difficulty
       // adjustment and the generation of the most current block.
-      auto interval_total_expected { interval * adjust_after };
+      auto total_time_expected { time_expected * adjust_after };
 
       // Time that has actually elapsed.
-      auto interval_total_actual { timestamp - m_timestamp };
+      auto total_time_actual { timestamp - m_timestamp };
 
       auto adjust_factor {
-        static_cast<double>(interval_total_expected.count()) /
-        static_cast<double>(interval_total_actual.count()) };
+        static_cast<double>(total_time_expected.count()) /
+        static_cast<double>(total_time_actual.count()) };
 
       if (adjust_factor < 1.0 / adjust_factor_limit)
         adjust_factor = 1.0 / adjust_factor_limit;

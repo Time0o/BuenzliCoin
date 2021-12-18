@@ -51,7 +51,10 @@ public:
   { return m_hash; }
 
   bool valid() const
-  { return m_hash == determine_hash(); }
+  {
+    return (m_hash == determine_hash()) &&
+           (m_timestamp - config().block_gen_time_max_delta < clock::now());
+  }
 
   bool is_genesis() const
   { return m_index == 0 && !m_hash_prev; }
@@ -59,7 +62,8 @@ public:
   bool is_successor_of(Block const &prev) const
   {
     return (m_index == prev.m_index + 1) &&
-           (m_hash_prev && *m_hash_prev == prev.m_hash);
+           (m_hash_prev && *m_hash_prev == prev.m_hash) &&
+           (prev.m_timestamp - config().block_gen_time_max_delta < m_timestamp);
   }
 
 #ifdef PROOF_OF_WORK
