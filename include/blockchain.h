@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
@@ -66,19 +68,21 @@ public:
            (prev.m_timestamp - config().block_gen_time_max_delta < m_timestamp);
   }
 
-#ifdef PROOF_OF_WORK
-  std::size_t difficulty() const
-  { return m_hash.difficulty(); }
+  double max_difficulty() const
+  { return std::pow(2.0, m_hash.leading_zeros()); }
 
-  void adjust_difficulty(std::size_t difficulty)
+#ifdef PROOF_OF_WORK
+  void adjust_difficulty(double difficulty)
   {
-    difficulty = std::min(difficulty, digest::length * 8);
+    auto difficulty_log2 { static_cast<std::size_t>(std::log2(difficulty)) };
+
+    assert(difficulty_log2 <= digest::length * 8);
 
     for (;;) {
       m_timestamp = clock::now();
 
       auto maybe_hash { determine_hash() };
-      if (maybe_hash.difficulty() >= difficulty) {
+      if (maybe_hash.leading_zeros() >= difficulty_log2) {
         m_hash = maybe_hash;
         break;
       }
@@ -193,6 +197,17 @@ public:
 #endif // PROOF_OF_WORK
   }
 
+  auto operator<=>(Blockchain const &other) const
+  {
+    std::scoped_lock lock { m_mtx };
+
+#ifdef PROOF_OF_WORK
+    return cumulative_difficulty() <=> other.cumulative_difficulty();
+#else
+    return length() <=> other.length();
+#endif // PROOF_OF_WORK
+  }
+
   bool empty() const
   {
     std::scoped_lock lock { m_mtx };
@@ -231,8 +246,12 @@ public:
   }
 
 #ifdef PROOF_OF_WORK
-  std::size_t difficulty() const
-  { return m_difficulty_adjuster.difficulty(); }
+  std::size_t cumulative_difficulty() const
+  {
+    std::scoped_lock lock { m_mtx };
+
+    return m_difficulty_adjuster.cumulative_difficulty();
+  }
 #endif // PROOF_OF_WORK
 
   std::vector<Block<HASHER>> all_blocks() const
@@ -265,7 +284,7 @@ public:
 #ifdef PROOF_OF_WORK
     m_difficulty_adjuster.adjust(block.timestamp());
 
-    block.adjust_difficulty(difficulty());
+    block.adjust_difficulty(m_difficulty_adjuster.difficulty());
 #endif // PROOF_OF_WORK
 
     m_blocks.emplace_back(std::move(block));
@@ -287,7 +306,7 @@ public:
 #ifdef PROOF_OF_WORK
     m_difficulty_adjuster.adjust(block.timestamp());
 
-    if (block.difficulty() < difficulty())
+    if (block.max_difficulty() < m_difficulty_adjuster.difficulty())
       throw std::logic_error("attempted appending a block with invalid difficulty");
 #endif // PROOF_OF_WORK
 
@@ -349,7 +368,7 @@ private:
   DifficultyAdjuster m_difficulty_adjuster;
 #endif // PROOF_OF_WORK
 
-  mutable std::mutex m_mtx;
+  mutable std::recursive_mutex m_mtx;
 };
 
 } // end namespace bc

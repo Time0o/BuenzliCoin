@@ -293,7 +293,7 @@ json Node::handle_receive_all_blocks(json const &data)
     throw WebSocketError(err);
   }
 
-  if (blockchain->length() > m_blockchain.length()) {
+  if (blockchain > m_blockchain) {
     m_log.info("Replacing current blockchain");
 
     m_blockchain = std::move(*blockchain);

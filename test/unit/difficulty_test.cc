@@ -3,7 +3,6 @@
 #include "catch2/catch.hpp"
 
 #include <chrono>
-#include <cmath>
 #include <cstdint>
 
 #include "clock.h"
@@ -32,7 +31,7 @@ TEST_CASE("difficulty_test", "[difficulty]")
 
   da.adjust(t);
 
-  REQUIRE(da.difficulty() == std::log2(DIFFICULTY_INIT));
+  REQUIRE(da.difficulty() == DIFFICULTY_INIT);
 
   SECTION("perfect timing")
   {
@@ -42,7 +41,7 @@ TEST_CASE("difficulty_test", "[difficulty]")
       da.adjust(t);
 
       INFO("Block " << i + 2);
-      CHECK(da.difficulty() == std::log2(DIFFICULTY_INIT));
+      CHECK(da.difficulty() == DIFFICULTY_INIT);
     }
   }
 
@@ -55,7 +54,7 @@ TEST_CASE("difficulty_test", "[difficulty]")
       da.adjust(t);
     }
 
-    CHECK(da.difficulty() == std::log2(2 * DIFFICULTY_INIT));
+    CHECK(da.difficulty() == 2 * DIFFICULTY_INIT);
 
     // Limited upward adjustment.
     for (int i { 0 }; i < DIFFICULTY_ADJUST_AFTER; ++i) {
@@ -64,7 +63,7 @@ TEST_CASE("difficulty_test", "[difficulty]")
       da.adjust(t);
     }
 
-    CHECK(da.difficulty() == std::log2(2 * DIFFICULTY_ADJUST_FACTOR_LIMIT * DIFFICULTY_INIT));
+    CHECK(da.difficulty() == 2 * DIFFICULTY_ADJUST_FACTOR_LIMIT * DIFFICULTY_INIT);
 
     // Downward adjustment.
     for (int i { 0 }; i < DIFFICULTY_ADJUST_AFTER; ++i) {
@@ -73,7 +72,7 @@ TEST_CASE("difficulty_test", "[difficulty]")
       da.adjust(t);
     }
 
-    CHECK(da.difficulty() == std::log2(DIFFICULTY_ADJUST_FACTOR_LIMIT * DIFFICULTY_INIT));
+    CHECK(da.difficulty() == DIFFICULTY_ADJUST_FACTOR_LIMIT * DIFFICULTY_INIT);
 
     // Limited downward adjustment.
     for (int i { 0 }; i < DIFFICULTY_ADJUST_AFTER; ++i) {
@@ -82,6 +81,6 @@ TEST_CASE("difficulty_test", "[difficulty]")
       da.adjust(t);
     }
 
-    CHECK(da.difficulty() == std::log2(DIFFICULTY_INIT));
+    CHECK(da.difficulty() == DIFFICULTY_INIT);
   }
 }

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cmath>
 #include <cstdint>
 
 #include "clock.h"
@@ -13,12 +12,14 @@ class DifficultyAdjuster
 {
 public:
   DifficultyAdjuster()
-  : m_difficulty_raw { config().block_gen_difficulty_init }
-  , m_difficulty_log2 { static_cast<std::size_t>(std::log2(m_difficulty_raw)) }
+  : m_difficulty { config().block_gen_difficulty_init }
   {}
 
-  std::size_t difficulty() const
-  { return m_difficulty_log2; }
+  double difficulty() const
+  { return m_difficulty; }
+
+  double cumulative_difficulty() const
+  { return m_cumulative_difficulty; }
 
   void adjust(clock::TimePoint timestamp)
   {
@@ -47,8 +48,8 @@ public:
       else if (adjust_factor > adjust_factor_limit)
         adjust_factor = adjust_factor_limit;
 
-      m_difficulty_raw *= adjust_factor;
-      m_difficulty_log2 = static_cast<std::size_t>(std::log2(m_difficulty_raw));
+      m_difficulty *= adjust_factor;
+      m_cumulative_difficulty += m_difficulty;
 
       m_timestamp = timestamp;
     }
@@ -57,8 +58,8 @@ public:
   }
 
 private:
-  double m_difficulty_raw;
-  std::size_t m_difficulty_log2;
+  double m_difficulty;
+  double m_cumulative_difficulty { 0.0 };
 
   std::size_t m_counter { 0 };
 

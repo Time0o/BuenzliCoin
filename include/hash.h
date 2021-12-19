@@ -35,21 +35,21 @@ public:
   bool operator==(Digest const &other) const
   { return m_arr == other.m_arr; }
 
-  std::size_t difficulty() const
+  std::size_t leading_zeros() const
   {
-    std::size_t difficulty { 0 };
+    std::size_t count { 0 };
 
     for (auto const &byte : m_arr) {
       uint8_t mask = 0x80;
       for (uint8_t mask { 0x80 }; mask; mask >>= 1) {
         if ((byte & mask) == 0x00)
-          ++difficulty;
+          ++count;
         else
-          return difficulty;
+          return count;
       }
     }
 
-    return difficulty;
+    return count;
   }
 
   std::string to_string() const
