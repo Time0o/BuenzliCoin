@@ -14,8 +14,8 @@
 #include <vector>
 
 #include "clock.h"
+#include "crypto/hash.h"
 #include "difficulty.h"
-#include "hash.h"
 #include "json.h"
 
 namespace bc

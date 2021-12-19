@@ -90,7 +90,10 @@ if(BUILD_TESTING)
     test/unit/difficulty_test.cc)
 
   bm_unit_test(hash_test
-    test/unit/hash_test.cc)
+    test/unit/crypto/hash_test.cc)
+
+  bm_unit_test(keypair_test
+    test/unit/crypto/keypair_test.cc)
 
   bm_unit_test(http_test
     src/web/http_client.cc

@@ -6,7 +6,7 @@
 #include <ostream>
 #include <string>
 
-#include "hash.h"
+#include "crypto/hash.h"
 
 namespace bc {
 
@@ -21,7 +21,7 @@ std::ostream &operator<<(std::ostream &os, Digest<DIGEST_LEN> const &d)
 
 using namespace bc;
 
-TEST_CASE("hash_test", "[hash]")
+TEST_CASE("hash_test", "[crypto]")
 {
   SECTION("digest string conversions")
   {
