@@ -76,7 +76,7 @@ public:
   {
     auto difficulty_log2 { static_cast<std::size_t>(std::log2(difficulty)) };
 
-    assert(difficulty_log2 <= digest::length * 8);
+    assert(difficulty_log2 <= digest::length() * 8);
 
     for (;;) {
       m_timestamp = clock::now();

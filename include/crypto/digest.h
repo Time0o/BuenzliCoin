@@ -15,8 +15,6 @@ template<std::size_t DIGEST_LEN>
 class Digest
 {
 public:
-  static constexpr auto length { DIGEST_LEN };
-
   using array = std::array<uint8_t, DIGEST_LEN>;
 
   Digest(array arr)
@@ -25,6 +23,12 @@ public:
 
   bool operator==(Digest const &other) const
   { return m_arr == other.m_arr; }
+
+  uint8_t const *data() const
+  { return m_arr.data(); }
+
+  static constexpr std::size_t length()
+  { return DIGEST_LEN; }
 
   std::size_t leading_zeros() const
   {
