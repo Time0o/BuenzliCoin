@@ -3,6 +3,7 @@
 #include <new>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 
 #include <openssl/bio.h>
 #include <openssl/ec.h>
@@ -22,12 +23,12 @@ public:
   using digest = Digest<DIGEST_LEN>;
 
 protected:
-  PrivateKey(std::string const &key)
-  : m_key(key)
+  PrivateKey(std::string_view key)
+  : m_key { build_key(key) }
   {}
 
 public:
-  digest sign(std::string const &msg) const
+  digest sign(std::string_view msg) const
   {
     auto key { IMPL::read_key(m_key) };
     if (!key)
@@ -53,7 +54,7 @@ public:
     if (EVP_DigestSignInit(mdctx, nullptr, IMPL::hasher(), nullptr, pkey) != 1)
       goto error;
 
-    if (EVP_DigestSignUpdate(mdctx, msg.c_str(), msg.length()) != 1)
+    if (EVP_DigestSignUpdate(mdctx, msg.data(), msg.length()) != 1)
       goto error;
 
     if (EVP_DigestSignFinal(mdctx, signature.data(), &signature_length) != 1)
@@ -79,6 +80,17 @@ public:
   }
 
 private:
+  static std::string build_key(std::string_view key)
+  {
+    std::stringstream ss;
+
+    ss << IMPL::header() << '\n'
+       << IMPL::prefix() << key << '\n'
+       << IMPL::footer();
+
+    return ss.str();
+  }
+
   std::string m_key;
 };
 
@@ -89,12 +101,12 @@ public:
   using digest = Digest<DIGEST_LEN>;
 
 protected:
-  PublicKey(std::string const &key)
-  : m_key(key)
+  PublicKey(std::string_view key)
+  : m_key { build_key(key) }
   {}
 
 public:
-  bool verify(std::string const &msg, digest const &d)
+  bool verify(std::string_view msg, digest const &d)
   {
     auto key { IMPL::read_key(m_key) };
     if (!key)
@@ -120,7 +132,7 @@ public:
     if (EVP_DigestVerifyInit(mdctx, nullptr, IMPL::hasher(), nullptr, pkey) != 1)
       goto error;
 
-    if (EVP_DigestVerifyUpdate(mdctx, msg.c_str(), msg.length()) != 1)
+    if (EVP_DigestVerifyUpdate(mdctx, msg.data(), msg.length()) != 1)
       goto error;
 
     status = EVP_DigestVerifyFinal(mdctx, d.data(), d.length());
@@ -154,22 +166,42 @@ public:
   }
 
 private:
+  static std::string build_key(std::string_view key)
+  {
+    std::stringstream ss;
+
+    ss << IMPL::header() << '\n'
+       << IMPL::prefix() << key << '\n'
+       << IMPL::footer();
+
+    return ss.str();
+  }
+
   std::string m_key;
 };
 
-class ECPrivateKey : public PrivateKey<ECPrivateKey, EC_KEY, 72>
+class ECSecp256k1PrivateKey : public PrivateKey<ECSecp256k1PrivateKey, EC_KEY, 72>
 {
-  friend class PrivateKey<ECPrivateKey, EC_KEY, 72>;
+  friend class PrivateKey;
 
 public:
-  ECPrivateKey(std::string const &key)
-  : PrivateKey<ECPrivateKey, EC_KEY, 72>(key)
+  ECSecp256k1PrivateKey(std::string_view key)
+  : PrivateKey(key)
   {}
 
 private:
-  static EC_KEY *read_key(std::string const &key)
+  static std::string_view header()
+  { return "-----BEGIN EC PRIVATE KEY-----"; }
+
+  static std::string_view footer()
+  { return "-----END EC PRIVATE KEY-----"; }
+
+  static std::string_view prefix()
+  { return "MHQCAQEEI"; }
+
+  static EC_KEY *read_key(std::string_view key)
   {
-    auto bio { BIO_new_mem_buf(key.c_str(), -1) };
+    auto bio { BIO_new_mem_buf(key.data(), key.length()) };
     if (!bio)
       throw std::bad_alloc {};
 
@@ -183,19 +215,28 @@ private:
   { return EVP_sha256(); }
 };
 
-class ECPublicKey : public PublicKey<ECPublicKey, EC_KEY, 72>
+class ECSecp256k1PublicKey : public PublicKey<ECSecp256k1PublicKey, EC_KEY, 72>
 {
-  friend class PublicKey<ECPublicKey, EC_KEY, 72>;
+  friend class PublicKey;
 
 public:
-  ECPublicKey(std::string const &key)
-  : PublicKey<ECPublicKey, EC_KEY, 72>(key)
+  ECSecp256k1PublicKey(std::string_view key)
+  : PublicKey(key)
   {}
 
 private:
-  static EC_KEY *read_key(std::string const &key)
+  static std::string_view header()
+  { return "-----BEGIN PUBLIC KEY-----"; }
+
+  static std::string_view footer()
+  { return "-----END PUBLIC KEY-----"; }
+
+  static std::string_view prefix()
+  { return "MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAE"; }
+
+  static EC_KEY *read_key(std::string_view key)
   {
-    auto bio { BIO_new_mem_buf(key.c_str(), -1) };
+    auto bio { BIO_new_mem_buf(key.data(), key.length()) };
     if (!bio)
       throw std::bad_alloc {};
 
