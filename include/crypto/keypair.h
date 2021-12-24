@@ -5,10 +5,10 @@
 #include <string>
 
 #include <openssl/bio.h>
+#include <openssl/ec.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
-#include <openssl/rsa.h>
 
 #include "crypto/digest.h"
 
@@ -36,8 +36,8 @@ public:
     EVP_MD_CTX *mdctx { nullptr };
     EVP_PKEY *pkey { nullptr };
 
-    typename digest::array d;
-    auto d_size { d.size() };
+    digest signature;
+    auto signature_length { signature.length() };
 
     mdctx = EVP_MD_CTX_new();
     if (!mdctx)
@@ -53,35 +53,32 @@ public:
     if (EVP_DigestSignInit(mdctx, nullptr, IMPL::hasher(), nullptr, pkey) != 1)
       goto error;
 
-    if (EVP_DigestSignUpdate(mdctx, msg.c_str(), msg.size()) != 1)
+    if (EVP_DigestSignUpdate(mdctx, msg.c_str(), msg.length()) != 1)
       goto error;
 
-    if (EVP_DigestSignFinal(mdctx, d.data(), &d_size) != 1)
+    if (EVP_DigestSignFinal(mdctx, signature.data(), &signature_length) != 1)
       goto error;
+
+    signature.adjust_length(signature_length);
 
     EVP_MD_CTX_free(mdctx);
     EVP_PKEY_free(pkey);
 
-    return digest { d };
+    return signature;
 
   error:
+    std::string error { ERR_error_string(ERR_get_error(), nullptr) };
+
     if (mdctx)
       EVP_MD_CTX_free(mdctx);
 
     if (pkey)
       EVP_PKEY_free(pkey);
 
-    throw std::runtime_error { EVP_error() };
+    throw std::runtime_error { error };
   }
 
 private:
-  static char const *EVP_error()
-  {
-    char EVP_error_buf[120];
-
-    return ERR_error_string(ERR_get_error(), EVP_error_buf);
-  }
-
   std::string m_key;
 };
 
@@ -97,7 +94,7 @@ protected:
   {}
 
 public:
-  bool verify(std::string const &msg, digest const &signature)
+  bool verify(std::string const &msg, digest const &d)
   {
     auto key { IMPL::read_key(m_key) };
     if (!key)
@@ -123,10 +120,10 @@ public:
     if (EVP_DigestVerifyInit(mdctx, nullptr, IMPL::hasher(), nullptr, pkey) != 1)
       goto error;
 
-    if (EVP_DigestVerifyUpdate(mdctx, msg.c_str(), msg.size()) != 1)
+    if (EVP_DigestVerifyUpdate(mdctx, msg.c_str(), msg.length()) != 1)
       goto error;
 
-    status = EVP_DigestVerifyFinal(mdctx, signature.data(), signature.length());
+    status = EVP_DigestVerifyFinal(mdctx, d.data(), d.length());
 
     switch (status) {
       case 0:
@@ -135,7 +132,6 @@ public:
       case 1:
         verified = true;
         break;
-        return true;
       default:
         goto error;
     }
@@ -146,79 +142,68 @@ public:
     return verified;
 
   error:
+    std::string error { ERR_error_string(ERR_get_error(), nullptr) };
+
     if (mdctx)
       EVP_MD_CTX_free(mdctx);
 
     if (pkey)
       EVP_PKEY_free(pkey);
 
-    throw std::runtime_error { EVP_error() };
+    throw std::runtime_error { error };
   }
 
 private:
-  static char const *EVP_error()
-  {
-    char EVP_error_buf[120];
-
-    return ERR_error_string(ERR_get_error(), EVP_error_buf);
-  }
-
   std::string m_key;
 };
 
-class RSAPrivateKey : public PrivateKey<RSAPrivateKey, RSA, 128>
+class ECPrivateKey : public PrivateKey<ECPrivateKey, EC_KEY, 72>
 {
-  friend class PrivateKey<RSAPrivateKey, RSA, 128>;
+  friend class PrivateKey<ECPrivateKey, EC_KEY, 72>;
 
 public:
-  RSAPrivateKey(std::string const &key)
-  : PrivateKey<RSAPrivateKey, RSA, 128>(key)
+  ECPrivateKey(std::string const &key)
+  : PrivateKey<ECPrivateKey, EC_KEY, 72>(key)
   {}
 
 private:
-  static RSA *read_key(std::string const &key)
+  static EC_KEY *read_key(std::string const &key)
   {
     auto bio { BIO_new_mem_buf(key.c_str(), -1) };
     if (!bio)
       throw std::bad_alloc {};
 
-    return PEM_read_bio_RSAPrivateKey(bio, nullptr, nullptr, nullptr);
+    return PEM_read_bio_ECPrivateKey(bio, nullptr, nullptr, nullptr);
   }
 
-  static int assign_key(EVP_PKEY *parent_key, RSA *key)
-  { return EVP_PKEY_assign_RSA(parent_key, key); }
+  static int assign_key(EVP_PKEY *parent_key, EC_KEY *key)
+  { return EVP_PKEY_assign_EC_KEY(parent_key, key); }
 
   static EVP_MD const *hasher()
   { return EVP_sha256(); }
 };
 
-class RSAPublicKey : public PublicKey<RSAPublicKey, RSA, 128>
+class ECPublicKey : public PublicKey<ECPublicKey, EC_KEY, 72>
 {
-  friend class PublicKey<RSAPublicKey, RSA, 128>;
+  friend class PublicKey<ECPublicKey, EC_KEY, 72>;
 
 public:
-  RSAPublicKey(std::string const &key)
-  : PublicKey<RSAPublicKey, RSA, 128>(key)
+  ECPublicKey(std::string const &key)
+  : PublicKey<ECPublicKey, EC_KEY, 72>(key)
   {}
 
 private:
-  static RSA *read_key(std::string const &key)
+  static EC_KEY *read_key(std::string const &key)
   {
-    for (auto read : {PEM_read_bio_RSA_PUBKEY, PEM_read_bio_RSAPublicKey}) {
-      auto bio { BIO_new_mem_buf(key.c_str(), -1) };
-      if (!bio)
-        throw std::bad_alloc {};
+    auto bio { BIO_new_mem_buf(key.c_str(), -1) };
+    if (!bio)
+      throw std::bad_alloc {};
 
-      RSA *key = read(bio, nullptr, nullptr, nullptr);
-      if (key)
-        return key;
-    }
-
-    return nullptr;
+    return PEM_read_bio_EC_PUBKEY(bio, nullptr, nullptr, nullptr);
   }
 
-  static int assign_key(EVP_PKEY *parent_key, RSA *key)
-  { return EVP_PKEY_assign_RSA(parent_key, key); }
+  static int assign_key(EVP_PKEY *parent_key, EC_KEY *key)
+  { return EVP_PKEY_assign_EC_KEY(parent_key, key); }
 
   static EVP_MD const *hasher()
   { return EVP_sha256(); }

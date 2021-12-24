@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cassert>
 #include <cstdint>
 #include <iomanip>
 #include <stdexcept>
@@ -17,24 +18,37 @@ class Digest
 public:
   using array = std::array<uint8_t, DIGEST_LEN>;
 
+  Digest()
+   : m_length { DIGEST_LEN }
+  {}
+
   Digest(array arr)
   : m_arr { std::move(arr) }
+  , m_length { DIGEST_LEN }
   {}
 
   bool operator==(Digest const &other) const
   { return m_arr == other.m_arr; }
 
+  uint8_t *data()
+  { return m_arr.data(); }
+
   uint8_t const *data() const
   { return m_arr.data(); }
 
-  static constexpr std::size_t length()
+  std::size_t length() const
+  { return m_length; }
+
+  static constexpr std::size_t max_length()
   { return DIGEST_LEN; }
 
-  std::size_t leading_zeros() const
+  std::size_t zero_prefix_length() const
   {
     std::size_t count { 0 };
 
-    for (auto const &byte : m_arr) {
+    for (std::size_t i { 0 }; i < m_length; ++i) {
+      auto const &byte = m_arr[i];
+
       uint8_t mask = 0x80;
       for (uint8_t mask { 0x80 }; mask; mask >>= 1) {
         if ((byte & mask) == 0x00)
@@ -45,6 +59,12 @@ public:
     }
 
     return count;
+  }
+
+  void adjust_length(std::size_t new_length)
+  {
+    assert(new_length <= m_length);
+    m_length = new_length;
   }
 
   std::string to_string() const
@@ -86,6 +106,7 @@ public:
 
 private:
   array m_arr;
+  std::size_t m_length;
 };
 
 } // end namespace bc
