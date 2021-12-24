@@ -9,6 +9,7 @@
 #include "log.h"
 #include "node.h"
 #include "uuid.h"
+#include "transaction.h"
 #include "web/http_error.h"
 #include "web/http_server.h"
 #include "web/websocket_error.h"

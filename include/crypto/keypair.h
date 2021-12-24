@@ -180,6 +180,15 @@ private:
   std::string m_key;
 };
 
+template<typename PRIVATE_KEY, typename PUBLIC_KEY, std::size_t DIGEST_LEN>
+struct KeyPair
+{
+  using private_key = PRIVATE_KEY;
+  using public_key = PUBLIC_KEY;
+
+  using digest = Digest<DIGEST_LEN>;
+};
+
 class ECSecp256k1PrivateKey : public PrivateKey<ECSecp256k1PrivateKey, EC_KEY, 72>
 {
   friend class PrivateKey;
@@ -249,5 +258,7 @@ private:
   static EVP_MD const *hasher()
   { return EVP_sha256(); }
 };
+
+using ECSecp256k1KeyPair = KeyPair<ECSecp256k1PrivateKey, ECSecp256k1PublicKey, 72>;
 
 } // end namespace bc
