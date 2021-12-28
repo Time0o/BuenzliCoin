@@ -9,7 +9,6 @@
 #include "log.h"
 #include "node.h"
 #include "uuid.h"
-#include "transaction.h"
 #include "web/http_error.h"
 #include "web/http_server.h"
 #include "web/websocket_error.h"
@@ -106,7 +105,7 @@ std::pair<HTTPServer::status, json> Node::handle_add_block(json const &data)
   m_log.info("Running 'add_block' handler");
 
   try {
-    m_blockchain.construct_next_block(data.get<std::string>());
+    m_blockchain.construct_next_block(block::data_type::from_json(data));
 
   } catch (std::exception const &e) {
     std::string err { "Malformed 'add_block' request: '" + data.dump() + "'" };
@@ -199,10 +198,10 @@ json Node::handle_receive_latest_block(json const &data)
   else
     m_log.info("Current latest block: '{}'", m_blockchain.latest_block().to_json().dump());
 
-  std::optional<Block<>> block;
+  std::optional<block> block;
 
   try {
-    block = Block<>::from_json(data["block"]);
+    block = block::from_json(data["block"]);
 
     if (!block->valid()) {
       std::string err { "Invalid block: '" + block->to_json().dump() + "'" };
@@ -271,10 +270,10 @@ json Node::handle_receive_all_blocks(json const &data)
 {
   m_log.info("Running 'receive_all_blocks' handler");
 
-  std::optional<Blockchain<>> blockchain;
+  std::optional<blockchain> blockchain;
 
   try {
-    blockchain = Blockchain<>::from_json(data["blockchain"]);
+    blockchain = blockchain::from_json(data["blockchain"]);
 
     if (!blockchain->valid()) {
       std::string err { "Invalid blockchain: '" + blockchain->to_json().dump() + "'" };

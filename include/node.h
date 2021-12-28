@@ -8,6 +8,7 @@
 #include "blockchain.h"
 #include "json.h"
 #include "log.h"
+#include "text.h"
 #include "uuid.h"
 #include "web/http_server.h"
 #include "web/websocket_peer.h"
@@ -18,6 +19,9 @@ namespace bc
 
 class Node
 {
+  using block = Block<Text>;
+  using blockchain = Blockchain<Text>;
+
 public:
   Node(std::string const &name,
        std::string const &websocket_addr,
@@ -60,8 +64,7 @@ private:
 
   log::Logger m_log;
 
-  Blockchain<> m_blockchain;
-  mutable std::mutex m_blockchain_mtx;
+  blockchain m_blockchain;
 
   WebSocketServer m_websocket_server;
   WebSocketPeers m_websocket_peers;

@@ -21,26 +21,35 @@
 namespace bc
 {
 
-template<typename HASHER = SHA256Hasher>
+template<typename T, typename HASHER = SHA256Hasher>
 class Block
 {
-  template<typename HASHER_>
+  template<typename T_, typename HASHER_>
   friend class Blockchain;
 
   using digest = HASHER::digest;
 
 public:
-  explicit Block(std::string const &data,
-                 std::optional<Block> const &last = std::nullopt)
+  using data_type = T;
+
+  explicit Block(T const &data)
   : m_data { data },
     m_timestamp { clock::now() },
     m_nonce { 0 },
-    m_index { last ? last->m_index + 1 : 0 },
-    m_hash_prev { last ? std::optional<digest> { last->m_hash } : std::nullopt },
+    m_index { 0 },
     m_hash { determine_hash() }
   {}
 
-  std::string data() const
+  explicit Block(T const &data, Block const &last)
+  : m_data { data },
+    m_timestamp { clock::now() },
+    m_nonce { 0 },
+    m_index { last.m_index + 1 },
+    m_hash_prev { last.m_hash },
+    m_hash { determine_hash() }
+  {}
+
+  T const &data() const
   { return m_data; }
 
   clock::TimePoint timestamp() const
@@ -54,7 +63,8 @@ public:
 
   bool valid() const
   {
-    return (m_hash == determine_hash()) &&
+    return (m_data.valid()) &&
+           (m_hash == determine_hash()) &&
            (m_timestamp - config().block_gen_time_max_delta < clock::now());
   }
 
@@ -96,7 +106,7 @@ public:
   {
     json j;
 
-    j["data"] = m_data;
+    j["data"] = m_data.to_json();
     j["timestamp"] = clock::to_time_since_epoch(m_timestamp);
     j["nonce"] = m_nonce;
     j["index"] = m_index;
@@ -111,7 +121,7 @@ public:
 
   static Block from_json(json const &j)
   {
-    auto data { j["data"].get<std::string>() };
+    auto data { T::from_json(j["data"]) };
     auto timestamp { clock::from_time_since_epoch(j["timestamp"].get<uint64_t>()) };
     auto nonce { j["nonce"].get<std::size_t>() };
     auto index { j["index"].get<uint64_t>() };
@@ -133,7 +143,7 @@ public:
   }
 
 private:
-  Block(std::string const &data,
+  Block(T const &data,
         clock::TimePoint const &timestamp,
         std::size_t nonce,
         uint64_t index,
@@ -151,7 +161,7 @@ private:
   {
     std::stringstream ss;
 
-    ss << m_data;
+    ss << m_data.to_json();
     ss << clock::to_time_since_epoch(m_timestamp);
     ss << m_nonce;
     ss << m_index;
@@ -162,7 +172,7 @@ private:
     return HASHER::instance().hash(ss.str());
   }
 
-  std::string m_data;
+  T m_data;
   clock::TimePoint m_timestamp;
   std::size_t m_nonce;
   uint64_t m_index;
@@ -171,12 +181,12 @@ private:
   digest m_hash;
 };
 
-template<typename HASHER = SHA256Hasher>
+template<typename T, typename HASHER = SHA256Hasher>
 class Blockchain
 {
 public:
-  using value_type = Block<HASHER>;
-  using const_iterator = typename std::vector<Block<HASHER>>::const_iterator;
+  using value_type = Block<T, HASHER>;
+  using const_iterator = typename std::vector<value_type>::const_iterator;
 
   Blockchain() = default;
 
@@ -254,14 +264,14 @@ public:
   }
 #endif // PROOF_OF_WORK
 
-  std::vector<Block<HASHER>> all_blocks() const
+  std::vector<value_type> all_blocks() const
   {
     std::scoped_lock lock { m_mtx };
 
     return m_blocks;
   }
 
-  Block<HASHER> const &latest_block() const
+  value_type const &latest_block() const
   {
     std::scoped_lock lock { m_mtx };
 
@@ -270,27 +280,31 @@ public:
     return m_blocks.back();
   }
 
-  void construct_next_block(std::string const &data)
+  void construct_next_block(T const &data)
   {
+    if (!data.valid())
+      throw std::logic_error("attempted appending invalid data");
+
     std::scoped_lock lock { m_mtx };
 
-    std::optional<Block<HASHER>> last_block;
+    std::unique_ptr<value_type> block;
+    //std::optional<value_type> last_block;
 
-    if (!m_blocks.empty())
-      last_block = m_blocks.back();
-
-    Block<HASHER> block { data, last_block };
+    if (m_blocks.empty())
+      block = std::make_unique<value_type>(data);
+    else
+      block = std::make_unique<value_type>(data, m_blocks.back());
 
 #ifdef PROOF_OF_WORK
-    m_difficulty_adjuster.adjust(block.timestamp());
+    m_difficulty_adjuster.adjust(block->timestamp());
 
-    block.adjust_difficulty(m_difficulty_adjuster.difficulty());
+    block->adjust_difficulty(m_difficulty_adjuster.difficulty());
 #endif // PROOF_OF_WORK
 
-    m_blocks.emplace_back(std::move(block));
+    link_next_block(std::move(*block));
   }
 
-  void append_next_block(Block<HASHER> block)
+  void append_next_block(value_type block)
   {
     std::scoped_lock lock { m_mtx };
 
@@ -310,7 +324,7 @@ public:
       throw std::logic_error("attempted appending a block with invalid difficulty");
 #endif // PROOF_OF_WORK
 
-    m_blocks.emplace_back(std::move(block));
+    link_next_block(std::move(block));
   }
 
   json to_json() const
@@ -330,25 +344,25 @@ public:
     Blockchain bchain;
 
     for (auto const &j_block : j)
-      bchain.append_next_block(Block<HASHER>::from_json(j_block));
+      bchain.append_next_block(value_type::from_json(j_block));
 
     return std::move(bchain);
   }
 
 private:
-  explicit Blockchain(std::vector<Block<HASHER>> const &blocks)
+  explicit Blockchain(std::vector<value_type> const &blocks)
   : m_blocks(blocks)
   {}
 
-  static bool valid_genesis_block(Block<HASHER> const &block)
+  static bool valid_genesis_block(value_type const &block)
   {
     return block.valid() &&
            block.index() == 0 &&
            !block.m_hash_prev;
   }
 
-  static bool valid_next_block(Block<HASHER> const &block,
-                               Block<HASHER> const &block_prev)
+  static bool valid_next_block(value_type const &block,
+                               value_type const &block_prev)
   {
     if (!block.valid())
       return false;
@@ -362,7 +376,17 @@ private:
     return true;
   }
 
-  std::vector<Block<HASHER>> m_blocks;
+  void link_next_block(value_type block)
+  {
+    if (m_blocks.empty())
+      block.m_data.make_genesis();
+    else
+      block.m_data.make_successor_of(m_blocks.back().m_data);
+
+    m_blocks.emplace_back(std::move(block));
+  }
+
+  std::vector<value_type> m_blocks;
 
 #ifdef PROOF_OF_WORK
   DifficultyAdjuster m_difficulty_adjuster;
