@@ -3,6 +3,7 @@
 #include <array>
 #include <cassert>
 #include <cstdint>
+#include <functional>
 #include <iomanip>
 #include <stdexcept>
 #include <string>
@@ -110,3 +111,17 @@ private:
 };
 
 } // end namespace bc
+
+namespace std
+{
+
+template<std::size_t DIGEST_LEN>
+struct hash<bc::Digest<DIGEST_LEN>>
+{
+  std::size_t operator()(bc::Digest<DIGEST_LEN> const &d) const
+  {
+    return hash<std::string>()(d.to_string());
+  }
+};
+
+} // end namespace std
