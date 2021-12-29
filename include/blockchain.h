@@ -31,16 +31,16 @@ public:
   using data_type = T;
   using digest = HASHER::digest;
 
-  explicit Block(T const &data)
-  : m_data { data },
+  explicit Block(T data)
+  : m_data { std::move(data) },
     m_timestamp { clock::now() },
     m_nonce { 0 },
     m_index { 0 },
     m_hash { determine_hash() }
   {}
 
-  explicit Block(T const &data, Block const &last)
-  : m_data { data },
+  explicit Block(T data, Block const &last)
+  : m_data { std::move(data) },
     m_timestamp { clock::now() },
     m_nonce { 0 },
     m_index { last.m_index + 1 },
@@ -132,28 +132,28 @@ public:
         hash_prev = digest::from_string(j["hash_prev"].get<std::string>());
 
     return Block {
-      data,
+      std::move(data),
       timestamp,
       nonce,
       index,
-      hash,
-      hash_prev
+      std::move(hash),
+      std::move(hash_prev)
     };
   }
 
 private:
-  Block(T const &data,
-        clock::TimePoint const &timestamp,
+  Block(T data,
+        clock::TimePoint timestamp,
         std::size_t nonce,
         uint64_t index,
-        digest const &hash,
-        std::optional<digest> const &hash_prev)
-  : m_data(data),
+        digest hash,
+        std::optional<digest> hash_prev)
+  : m_data(std::move(data)),
     m_timestamp(timestamp),
     m_nonce(nonce),
     m_index(index),
-    m_hash(hash),
-    m_hash_prev(hash_prev)
+    m_hash(std::move(hash)),
+    m_hash_prev(std::move(hash_prev))
   {}
 
   digest determine_hash() const
@@ -279,7 +279,7 @@ public:
     return m_blocks.back();
   }
 
-  void construct_next_block(T const &data)
+  void construct_next_block(T data)
   {
     if (!data.valid())
       throw std::logic_error("attempted appending invalid data");
@@ -290,9 +290,9 @@ public:
     //std::optional<value_type> last_block;
 
     if (m_blocks.empty())
-      block = std::make_unique<value_type>(data);
+      block = std::make_unique<value_type>(std::move(data));
     else
-      block = std::make_unique<value_type>(data, m_blocks.back());
+      block = std::make_unique<value_type>(std::move(data), m_blocks.back());
 
 #ifdef PROOF_OF_WORK
     m_difficulty_adjuster.adjust(block->timestamp());
