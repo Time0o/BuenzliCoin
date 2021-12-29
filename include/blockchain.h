@@ -27,10 +27,9 @@ class Block
   template<typename T_, typename HASHER_>
   friend class Blockchain;
 
-  using digest = HASHER::digest;
-
 public:
   using data_type = T;
+  using digest = HASHER::digest;
 
   explicit Block(T const &data)
   : m_data { data },
