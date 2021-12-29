@@ -20,6 +20,9 @@ struct Config
   // Block generation difficulty adjustment limit.
   double block_gen_difficulty_adjust_factor_limit { 16 };
 
+  // Number of coins sent by reward transaction.
+  std::size_t transaction_reward_amount { 50 };
+
   // XXX to_toml
 
   static Config from_toml(std::string const &filename);

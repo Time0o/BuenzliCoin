@@ -58,7 +58,9 @@ PYBIND11_MODULE(bc, m)
     .def_readwrite("block_gen_difficulty_adjust_after",
                    &Config::block_gen_difficulty_adjust_after)
     .def_readwrite("block_gen_difficulty_adjust_factor_limit",
-                   &Config::block_gen_difficulty_adjust_factor_limit);
+                   &Config::block_gen_difficulty_adjust_factor_limit)
+    .def_readwrite("transaction_reward_amount",
+                   &Config::transaction_reward_amount);
 
    m.def("config", &config, py::return_value_policy::reference);
 }

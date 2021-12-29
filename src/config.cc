@@ -66,6 +66,12 @@ Config Config::from_toml(std::string const &filename)
       "difficulty_adjust_factor_limit");
   });
 
+  toml_for_table(t, "transaction", [&cfg](auto const &t) {
+    toml_assign<std::size_t>(
+      cfg.transaction_reward_amount, t,
+      "reward_amount");
+  });
+
   return cfg;
 }
 
