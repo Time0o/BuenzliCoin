@@ -51,7 +51,10 @@ private:
     if (!m_prefix.empty())
       ss << m_prefix << ' ';
 
-    ss << fmt::format(msg_fmt, std::forward<ARGS>(args)...);
+    if (sizeof...(args) == 0)
+      ss << msg_fmt;
+    else
+      ss << fmt::format(msg_fmt, std::forward<ARGS>(args)...);
 
     log(level, ss.str());
   }
