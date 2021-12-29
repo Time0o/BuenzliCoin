@@ -8,6 +8,7 @@
 #include "config.h"
 #include "json.h"
 #include "text.h"
+#include "transaction.h"
 
 namespace py = pybind11;
 using namespace py::literals;
@@ -16,7 +17,13 @@ using namespace bc;
 
 PYBIND11_MODULE(bc, m)
 {
+#ifdef TRANSACTION
+  using block = Block<Transaction>;
+  using blockchain = Blockchain<Transaction>;
+#else
   using block = Block<Text>;
+  using blockchain = Blockchain<Text>;
+#endif // TRANSACTION
 
   py::class_<block>(m, "Block")
     .def("__repr__", &block::to_json)
@@ -29,8 +36,6 @@ PYBIND11_MODULE(bc, m)
     .def("is_successor_of", &block::is_successor_of, "prev"_a)
     .def("to_json", &block::to_json)
     .def_static("from_json", &block::from_json, "j"_a);
-
-  using blockchain = Blockchain<Text>;
 
   py::class_<blockchain>(m, "Blockchain")
     .def("__repr__", &blockchain::to_json)

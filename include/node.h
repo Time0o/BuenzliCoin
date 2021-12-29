@@ -9,6 +9,7 @@
 #include "json.h"
 #include "log.h"
 #include "text.h"
+#include "transaction.h"
 #include "uuid.h"
 #include "web/http_server.h"
 #include "web/websocket_peer.h"
@@ -19,8 +20,13 @@ namespace bc
 
 class Node
 {
+#ifdef TRANSACTIONS
+  using block = Block<Transaction<>>;
+  using blockchain = Blockchain<Transaction<>>;
+#else
   using block = Block<Text>;
   using blockchain = Blockchain<Text>;
+#endif // TRANSACTION
 
 public:
   Node(std::string const &name,
@@ -40,6 +46,9 @@ private:
   std::pair<HTTPServer::status, json> handle_add_block(json const &data);
   std::pair<HTTPServer::status, json> handle_list_peers() const;
   std::pair<HTTPServer::status, json> handle_add_peer(json const &data);
+#ifdef TRANSACTIONS
+  std::pair<HTTPServer::status, json> handle_transactions_unspent_outputs() const;
+#endif // TRANSACTIONS
 
   json handle_request_latest_block(json const &data) const;
   json handle_request_all_blocks(json const &data) const;

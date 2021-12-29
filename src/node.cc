@@ -72,6 +72,8 @@ void Node::websocket_setup()
 
 void Node::http_setup()
 {
+  // XXX Appropriately rename and add more block accessors.
+
   m_http_server.support("/list-blocks",
                         HTTPServer::method::get,
                         [this](json const &)
@@ -91,6 +93,13 @@ void Node::http_setup()
                         HTTPServer::method::post,
                         [this](json const &data)
                         { return handle_add_peer(data); });
+
+#ifdef TRANSACTIONS
+  m_http_server.support("/transactions/unspent-outputs",
+                        HTTPServer::method::get,
+                        [this](json const &)
+                        { return handle_transactions_unspent_outputs(); });
+#endif // TRANSACTIONS
 }
 
 std::pair<HTTPServer::status, json> Node::handle_list_blocks() const
@@ -154,6 +163,28 @@ std::pair<HTTPServer::status, json> Node::handle_add_peer(json const &data)
 
   return { HTTPServer::status::ok, {} };
 }
+
+#ifdef TRANSACTIONS
+
+std::pair<HTTPServer::status, json> Node::handle_transactions_unspent_outputs() const
+{
+  m_log.info("Running 'transactions_unspent_outputs' handler");
+
+  json answer = json::array();
+
+  if (m_blockchain.empty())
+    return answer;
+
+  auto const &block { m_blockchain.latest_block() };
+  auto const &transactions { block.data() };
+
+  for (auto const &utxo : transactions.unspent_outputs())
+    answer.push_back(utxo.to_json());
+
+  return { HTTPServer::status::ok, answer };
+}
+
+#endif // TRANSACTIONS
 
 json Node::handle_request_latest_block(json const &data) const
 {
