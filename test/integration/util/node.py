@@ -14,6 +14,13 @@ class Node:
     SETUP_TIME = 0.25
     TEARDOWN_TIME = 0.25
 
+    class Transactions:
+        def __init__(self, node):
+            self._node = node
+
+        def unspent_outputs(self):
+            return self._node._api_call('transactions/unspent-outputs', 'get')
+
     def __init__(self,
                  name,
                  config='config/default.toml',
@@ -21,7 +28,8 @@ class Node:
                  websocket_port=DEFAULT_WEBSOCKET_PORT,
                  http_host='127.0.0.1',
                  http_port=DEFAULT_HTTP_PORT,
-                 proof_of_work=False):
+                 with_proof_of_work=False,
+                 with_transactions=False):
 
         self._name = name
         self._config = config
@@ -29,13 +37,25 @@ class Node:
         self._websocket_port = websocket_port
         self._http_host = http_host
         self._http_port = http_port
-        self._proof_of_work = proof_of_work
+        self._with_proof_of_work = with_proof_of_work
+        self._with_transactions = with_transactions
 
         self._api_url = f'{http_host}:{http_port}'
 
+        self.transactions = self.Transactions(self)
+
     def run(self):
+        if self._with_proof_of_work and self._with_transactions:
+            raise ValueError("Can't specify both 'proof_of_work' and 'transactions'")
+        elif self._with_proof_of_work:
+            node = os.getenv('NODE_POW')
+        elif self._with_transactions:
+            node = os.getenv('NODE_TRANS')
+        else:
+            node = os.getenv('NODE')
+
         args = [
-            os.getenv('NODE_POW' if self._proof_of_work else 'NODE_NAIVE'),
+            node,
             '--name', self._name,
             '--config', self._config,
             '--websocket-host', self._websocket_host,

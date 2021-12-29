@@ -22,7 +22,7 @@ class ProofOfWorkTest(TestCase):
     def test_build_blockchain(self):
         NUM_ADJUSTMENTS = 5
 
-        with run_nodes(num_nodes=1, config=self.CONFIG, proof_of_work=True) as node:
+        with run_nodes(num_nodes=1, config=self.CONFIG, with_proof_of_work=True) as node:
             for _ in range(NUM_ADJUSTMENTS):
                 self._append_blocks(node)
 

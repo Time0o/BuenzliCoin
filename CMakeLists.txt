@@ -29,7 +29,7 @@ macro(bm_config target)
 endmacro()
 
 # Node binary.
-add_executable(node_naive
+add_executable(node
   src/config.cc
   src/log.cc
   src/main.cc
@@ -38,7 +38,7 @@ add_executable(node_naive
   src/web/websocket_client.cc
   src/web/websocket_server.cc)
 
-bm_config(node_naive)
+bm_config(node)
 
 add_executable(node_pow
   src/config.cc
@@ -52,6 +52,19 @@ add_executable(node_pow
 target_compile_definitions(node_pow PRIVATE -DPROOF_OF_WORK)
 
 bm_config(node_pow)
+
+add_executable(node_trans
+  src/config.cc
+  src/log.cc
+  src/main.cc
+  src/node.cc
+  src/web/http_server.cc
+  src/web/websocket_client.cc
+  src/web/websocket_server.cc)
+
+target_compile_definitions(node_trans PRIVATE -DTRANSACTIONS)
+
+bm_config(node_trans)
 
 # Python bindings.
 pybind11_add_module(bc src/python.cc)
@@ -79,8 +92,9 @@ if(BUILD_TESTING)
   macro(bm_integration_test target)
     add_test(
       NAME ${target}
-      COMMAND ${CMAKE_COMMAND} -E env NODE_NAIVE=$<TARGET_FILE:node_naive>
+      COMMAND ${CMAKE_COMMAND} -E env NODE=$<TARGET_FILE:node>
                                       NODE_POW=$<TARGET_FILE:node_pow>
+                                      NODE_TRANS=$<TARGET_FILE:node_trans>
                                       PYTHONPATH=$<TARGET_FILE_DIR:bc>
               ${PYTHON} ${ARGN}
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
@@ -110,4 +124,7 @@ if(BUILD_TESTING)
 
   bm_integration_test(proof_of_work_test
     test/integration/proof_of_work_test.py)
+
+  bm_integration_test(transaction_test
+    test/integration/transaction_test.py)
 endif()
