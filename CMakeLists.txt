@@ -58,6 +58,7 @@ add_executable(node_trans
   src/log.cc
   src/main.cc
   src/node.cc
+  src/transaction.cc
   src/web/http_server.cc
   src/web/websocket_client.cc
   src/web/websocket_server.cc)

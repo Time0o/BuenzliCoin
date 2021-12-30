@@ -1,11 +1,8 @@
 #pragma once
 
-#include <cassert>
 #include <cstdint>
 #include <list>
 #include <memory>
-#include <sstream>
-#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -40,26 +37,8 @@ public:
     std::size_t output_index; // Index of TxO in transaction.
     KEY_PAIR::digest signature;
 
-    json to_json() const
-    {
-      json j;
-      j["transaction_index"] = transaction_index;
-      j["transaction_hash"] = transaction_hash.to_string();
-      j["output_index"] = output_index;
-      j["signature"] = signature.to_string();
-
-      return j;
-    }
-
-    static TxI from_json(json const &j)
-    {
-      return {
-        json_get(j, "transaction_index").get<std::size_t>(),
-        hasher_digest::from_string(json_get(j, "transaction_hash")),
-        json_get(j, "output_index").get<std::size_t>(),
-        key_pair_digest::from_string(j["signature"])
-      };
-    }
+    json to_json() const;
+    static TxI from_json(json const &j);
   };
 
   struct TxO // Transaction output.
@@ -67,22 +46,8 @@ public:
     std::size_t amount; // Number of coins sent.
     std::string address; // Receiving wallet address.
 
-    json to_json() const
-    {
-      json j;
-      j["amount"] = amount;
-      j["address"] = address;
-
-      return j;
-    }
-
-    static TxO from_json(json const &j)
-    {
-      return {
-        json_get(j, "amount").get<std::size_t>(),
-        json_get(j, "address").get<std::string>()
-      };
-    }
+    json to_json() const;
+    static TxO from_json(json const &j);
   };
 
   struct UTxO // Unspent transaction output.
@@ -92,16 +57,7 @@ public:
     std::size_t output_index; // Index of TxO in transaction.
     TxO output;
 
-    json to_json() const
-    {
-      json j;
-      j["transaction_index"] = transaction_index;
-      j["transaction_hash"] = transaction_hash.to_string();
-      j["output_index"] = output_index;
-      j["output"] = output.to_json();
-
-      return j;
-    }
+    json to_json() const;
   };
 
   using UTxOList = std::list<UTxO>;
@@ -140,56 +96,8 @@ public:
     update_unspent_outputs();
   }
 
-  json to_json() const
-  {
-    json j;
-
-    switch (m_type) {
-    case Type::STANDARD:
-        j["type"] = "standard";
-        break;
-    case Type::REWARD:
-        j["type"] = "reward";
-        break;
-    }
-
-    j["index"] = m_index;
-
-    j["hash"] = m_hash.to_string();
-
-    for (auto const &txi : m_inputs)
-      j["inputs"].push_back(txi.to_json());
-
-    for (auto const &txo : m_outputs)
-      j["outputs"].push_back(txo.to_json());
-
-    return j;
-  }
-
-  static Transaction from_json(json const &j)
-  {
-    Type type;
-    if (json_get(j, "type") == "standard")
-      type = Type::STANDARD;
-    else if (json_get(j, "type") == "reward")
-      type = Type::REWARD;
-    else
-      throw std::logic_error("invalid transaction type");
-
-    auto index { json_get(j, "index").get<std::size_t>() };
-
-    auto hash { hasher_digest::from_string(json_get(j, "hash")) };
-
-    std::vector<TxI> inputs;
-    for (auto const &j_txi : json_get(j, "inputs"))
-      inputs.emplace_back(TxI::from_json(j_txi));
-
-    std::vector<TxO> outputs;
-    for (auto const &j_txo : json_get(j, "outputs"))
-      outputs.emplace_back(TxO::from_json(j_txo));
-
-    return Transaction { type, index, hash, inputs, outputs };
-  }
+  json to_json() const;
+  static Transaction from_json(json const &j);
 
 private:
   Transaction(Type type,
@@ -204,66 +112,11 @@ private:
   , m_outputs { std::move(outputs) }
   {}
 
-  void update_unspent_outputs() const
-  {
-    for (std::size_t i { 0 }; i < m_outputs.size(); ++i)
-      (*m_unspent_outputs)[m_hash].emplace_back(m_index, m_hash, i, m_outputs[i]);
+  bool valid_reward(std::size_t index) const;
 
-    for (auto const &txi : m_inputs) {
-      auto it { m_unspent_outputs->find(txi.transaction_hash) };
-      if (it != m_unspent_outputs->end()) {
-        auto &l { it->second };
+  hasher_digest determine_hash() const;
 
-        auto it_remove {
-          std::find_if(l.begin(),
-                       l.end(),
-                       [&txi](auto const &utxo)
-                       { return utxo.output_index == txi.output_index; }) };
-
-        assert(it_remove != l.end());
-
-        l.erase(it_remove);
-      }
-    }
-  }
-
-  bool valid_reward(std::size_t index) const
-  {
-    if (m_index != index)
-      return false;
-
-    if (m_hash != determine_hash())
-      return false;
-
-    if (!m_inputs.empty())
-      return false;
-
-    if (m_outputs.size() != 1)
-      return false;
-
-    if (m_outputs[0].amount != config().transaction_reward_amount)
-      return false;
-
-    return true;
-  }
-
-  hasher_digest determine_hash() const
-  {
-    std::stringstream ss;
-
-    ss << m_index;
-
-    for (auto const &txi : m_inputs)
-      ss << txi.transaction_index
-         << txi.transaction_hash.to_string()
-         << txi.output_index;
-
-    for (auto const &txo : m_outputs)
-      ss << txo.amount
-         << txo.address;
-
-    return HASHER::instance().hash(ss.str());
-  }
+  void update_unspent_outputs() const;
 
   Type m_type;
   std::size_t m_index;
