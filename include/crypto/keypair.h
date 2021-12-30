@@ -106,7 +106,7 @@ protected:
   {}
 
 public:
-  bool verify(std::string_view msg, digest const &d)
+  bool verify(std::string_view msg, digest const &d) const
   {
     auto key { IMPL::read_key(m_key) };
     if (!key)
