@@ -68,6 +68,9 @@ Config Config::from_toml(std::string const &filename)
 
   toml_for_table(t, "transaction", [&cfg](auto const &t) {
     toml_assign<std::size_t>(
+      cfg.transaction_num_per_block, t,
+      "num_per_block");
+    toml_assign<std::size_t>(
       cfg.transaction_reward_amount, t,
       "reward_amount");
   });
