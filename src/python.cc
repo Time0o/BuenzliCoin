@@ -63,4 +63,24 @@ PYBIND11_MODULE(bc, m)
                    &Config::transaction_reward_amount);
 
    m.def("config", &config, py::return_value_policy::reference);
+
+  py::class_<ECSecp256k1PrivateKey>(m, "ECSecp256k1PrivateKey")
+    .def(py::init<std::string_view>())
+    .def("sign",
+         [](ECSecp256k1PrivateKey const &key, std::string_view msg)
+         {
+           return key.sign(msg).to_string();
+         });
+
+  py::class_<ECSecp256k1PublicKey>(m, "ECSecp256k1PublicKey")
+    .def(py::init<std::string_view>())
+    .def("verify",
+         [](ECSecp256k1PublicKey const &key,
+            std::string_view msg,
+            std::string const &signature)
+         {
+            auto digest { ECSecp256k1PublicKey::digest::from_string(signature) };
+
+            return key.verify(msg, digest);
+         });
 }
