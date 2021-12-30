@@ -5,12 +5,17 @@ from Crypto.Hash import SHA256
 from Crypto.PublicKey import ECC
 from Crypto.Signature import DSS
 
+from bc import ECSecp256k1PrivateKey
 from util.node import run_nodes
 
 
 EC_PRIVATE_KEY1 = "LYZYhW4AeutWpQ9y5+jEY3YWR1Fohg0fdeEOow4CVVVoAcGBSuBBAAKoUQDQgAElaLbhDGtD9tOKNblgyJoYis+3kxCwFWfn+maKabqqwA+d+8RxPv5oKV0/7Y5Hj5IkPeLAl+0VAKejpNX3+F92w=="
 
 EC_PUBLIC_KEY1 = "laLbhDGtD9tOKNblgyJoYis+3kxCwFWfn+maKabqqwA+d+8RxPv5oKV0/7Y5Hj5IkPeLAl+0VAKejpNX3+F92w=="
+
+EC_PRIVATE_KEY2 = "MhAttMFB2H70eWRmUrRqxzmr7Q0s6Oi5EzxlBKR/dCfoAcGBSuBBAAKoUQDQgAEzZAc8y92btejhFwuZfUvYNUjWIQUtPyEnHeeLjdtNCZXkN5d/7W2MHVsNZN5fW8CIQdrSWjPJGe//RXvFLakUg=="
+
+EC_PUBLIC_KEY2 = "zZAc8y92btejhFwuZfUvYNUjWIQUtPyEnHeeLjdtNCZXkN5d/7W2MHVsNZN5fW8CIQdrSWjPJGe//RXvFLakUg=="
 
 
 class TransactionTest(TestCase):
@@ -39,21 +44,56 @@ class TransactionTest(TestCase):
                 },
                 key=EC_PRIVATE_KEY1)
 
-            node.add_block(tx0)
+            tx1 = self._create_transaction(
+                {
+                    'type': 'standard',
+                    'index': 0,
+                    'hash': None,
+                    'inputs': [
+                        {
+                            'output_hash': tx0['hash'],
+                            'output_index': 0,
+                            'signature': None
+                        }
+                    ],
+                    'outputs': [
+                        {
+                            'amount': self._reward_amount // 2,
+                            'address': EC_PUBLIC_KEY1
+                        },
+                        {
+                            'amount': self._reward_amount // 2,
+                            'address': EC_PUBLIC_KEY2
+                        }
+                    ]
+                },
+                key=EC_PRIVATE_KEY1)
+
+            node.add_block([tx0, tx1])
 
             utxos0 = node.transactions.unspent_outputs()
 
-            self.assertEqual(len(utxos0), 1)
+            self.assertEqual(len(utxos0), 2)
 
             self.assertDictEqual(
                 utxos0[0],
                 {
-                    'transaction_index': tx0['index'],
-                    'transaction_hash': tx0['hash'],
+                    'output_hash': tx1['hash'],
                     'output_index': 0,
                     'output': {
-                        'amount': self._reward_amount,
+                        'amount': self._reward_amount // 2,
                         'address': EC_PUBLIC_KEY1
+                    }
+                })
+
+            self.assertDictEqual(
+                utxos0[1],
+                {
+                    'output_hash': tx1['hash'],
+                    'output_index': 1,
+                    'output': {
+                        'amount': self._reward_amount // 2,
+                        'address': EC_PUBLIC_KEY2
                     }
                 })
 
@@ -70,8 +110,8 @@ class TransactionTest(TestCase):
 
         for txi in t['inputs']:
             content += [
-                txi['transaction_index'],
-                txi['transaction_hash'],
+                txi['output_index'],
+                txi['output_hash'],
                 txi['output_index']
             ]
 
@@ -92,11 +132,20 @@ class TransactionTest(TestCase):
 
     @classmethod
     def _sign_transaction(cls, t, key):
-        pass # XXX
+        signature = cls._sign(t['hash'], key=key)
+
+        for txi in t['inputs']:
+            txi['signature'] = signature
 
     @classmethod
     def _hash(cls, msg):
         return SHA256.new(msg.encode()).hexdigest()
+
+    @classmethod
+    def _sign(cls, msg, key):
+        key = ECSecp256k1PrivateKey(key)
+
+        return key.sign(msg)
 
 
 if __name__ == '__main__':
