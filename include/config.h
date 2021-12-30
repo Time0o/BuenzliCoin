@@ -20,6 +20,8 @@ struct Config
   // Block generation difficulty adjustment limit.
   double block_gen_difficulty_adjust_factor_limit { 16 };
 
+  // Number of transactions per block
+  std::size_t transaction_num_per_block { 10 };
   // Number of coins sent by reward transaction.
   std::size_t transaction_reward_amount { 50 };
 

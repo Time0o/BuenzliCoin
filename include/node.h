@@ -21,8 +21,8 @@ namespace bc
 class Node
 {
 #ifdef TRANSACTIONS
-  using block = Block<Transaction<>>;
-  using blockchain = Blockchain<Transaction<>>;
+  using block = Block<TransactionGroup<>>;
+  using blockchain = Blockchain<TransactionGroup<>>;
 #else
   using block = Block<Text>;
   using blockchain = Blockchain<Text>;
