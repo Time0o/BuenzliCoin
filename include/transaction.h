@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "config.h"
 #include "crypto/digest.h"
 #include "crypto/hash.h"
 #include "crypto/keypair.h"
@@ -116,10 +117,15 @@ public:
     return list;
   }
 
-  bool valid() const
+  bool valid(std::size_t index) const
   {
-    // XXX
-    return true;
+    switch (m_type) {
+    case Type::REWARD:
+      return valid_reward(index);
+    default:
+      // XXX
+      return true;
+    }
   }
 
   void make_genesis()
@@ -219,6 +225,44 @@ private:
         l.erase(it_remove);
       }
     }
+  }
+
+  bool valid_reward(std::size_t index) const
+  {
+    if (m_index != index)
+      return false;
+
+    if (m_hash != determine_hash())
+      return false;
+
+    if (!m_inputs.empty())
+      return false;
+
+    if (m_outputs.size() != 1)
+      return false;
+
+    if (m_outputs[0].amount != config().transaction_reward_amount)
+      return false;
+
+    return true;
+  }
+
+  hasher_digest determine_hash() const
+  {
+    std::stringstream ss;
+
+    ss << m_index;
+
+    for (auto const &txi : m_inputs)
+      ss << txi.transaction_index
+         << txi.transaction_hash.to_string()
+         << txi.output_index;
+
+    for (auto const &txo : m_outputs)
+      ss << txo.amount
+         << txo.address;
+
+    return HASHER::instance().hash(ss.str());
   }
 
   Type m_type;

@@ -66,7 +66,7 @@ class TransactionTest(TestCase):
 
     @classmethod
     def _hash_transaction(cls, t):
-        content = []
+        content = [t['index']]
 
         for txi in t['inputs']:
             content += [

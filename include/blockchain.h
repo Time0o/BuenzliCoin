@@ -62,9 +62,9 @@ public:
 
   bool valid() const
   {
-    return (m_data.valid()) &&
-           (m_hash == determine_hash()) &&
-           (m_timestamp - config().block_gen_time_max_delta < clock::now());
+    return (m_data.valid(m_index)) &&
+           (m_timestamp - config().block_gen_time_max_delta < clock::now()) &&
+           (m_hash == determine_hash());
   }
 
   bool is_genesis() const
@@ -72,9 +72,9 @@ public:
 
   bool is_successor_of(Block const &prev) const
   {
-    return (m_index == prev.m_index + 1) &&
-           (m_hash_prev && *m_hash_prev == prev.m_hash) &&
-           (prev.m_timestamp - config().block_gen_time_max_delta < m_timestamp);
+    return (m_timestamp > prev.m_timestamp - config().block_gen_time_max_delta) &&
+           (m_index == prev.m_index + 1) &&
+           (m_hash_prev && *m_hash_prev == prev.m_hash);
   }
 
   double max_difficulty() const
@@ -281,13 +281,12 @@ public:
 
   void construct_next_block(T data)
   {
-    if (!data.valid())
+    if (!data.valid(m_blocks.size()))
       throw std::logic_error("attempted appending invalid data");
 
     std::scoped_lock lock { m_mtx };
 
     std::unique_ptr<value_type> block;
-    //std::optional<value_type> last_block;
 
     if (m_blocks.empty())
       block = std::make_unique<value_type>(std::move(data));
@@ -355,21 +354,21 @@ private:
 
   static bool valid_genesis_block(value_type const &block)
   {
-    return block.valid() &&
-           block.index() == 0 &&
-           !block.m_hash_prev;
+    return block.index() == 0 &&
+           !block.m_hash_prev &&
+           block.valid();
   }
 
   static bool valid_next_block(value_type const &block,
                                value_type const &block_prev)
   {
-    if (!block.valid())
-      return false;
-
     if (block.index() != block_prev.index() + 1)
       return false;
 
     if (!block.m_hash_prev || (*block.m_hash_prev != block_prev.m_hash))
+      return false;
+
+    if (!block.valid())
       return false;
 
     return true;

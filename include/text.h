@@ -15,7 +15,7 @@ public:
   : m_text { std::move(text) }
   {}
 
-  bool valid() const
+  bool valid(std::size_t) const
   { return true; }
 
   void make_genesis()
