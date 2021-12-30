@@ -117,7 +117,8 @@ std::pair<HTTPServer::status, json> Node::handle_add_block(json const &data)
     m_blockchain.construct_next_block(block::data_type::from_json(data));
 
   } catch (std::exception const &e) {
-    std::string err { "Malformed 'add_block' request: '" + data.dump() + "'" };
+    std::string err {
+      "Malformed 'add_block' request: '" + data.dump() + "': " + e.what() };
 
     m_log.error(err);
 
@@ -148,7 +149,8 @@ std::pair<HTTPServer::status, json> Node::handle_add_peer(json const &data)
     port = data["port"].get<uint16_t>();
 
   } catch (std::exception const &e) {
-    std::string err { "Malformed 'add_peer' request: '" + data.dump() + "'" };
+    std::string err {
+      "Malformed 'add_peer' request: '" + data.dump() + "': " + e.what() };
 
     m_log.error(err);
 
@@ -245,7 +247,8 @@ json Node::handle_receive_latest_block(json const &data)
     m_log.debug("Received block: '{}'", block->to_json().dump());
 
   } catch (std::exception const &e) {
-    std::string err { "Malformed 'receive_latest_block' request: '" + data.dump() + "'" };
+    std::string err {
+      "Malformed 'receive_latest_block' request: '" + data.dump() + "': " + e.what() };
 
     m_log.error(err);
 
@@ -261,7 +264,8 @@ json Node::handle_receive_latest_block(json const &data)
       port = data["origin"]["port"].get<uint16_t>();
 
     } catch (std::exception const &e) {
-      std::string err { "Invalid 'receive_latest_block' request: '" + data.dump() + "'" };
+      std::string err {
+        "Malformed 'receive_latest_block' request: '" + data.dump() + "'" + e.what() };
 
       m_log.error(err);
 
@@ -317,7 +321,8 @@ json Node::handle_receive_all_blocks(json const &data)
     m_log.debug("Received blockchain: '{}'", blockchain->to_json().dump());
 
   } catch (std::exception const &e) {
-    std::string err { "Malformed 'receive_all_blocks' request: '" + data.dump() + "'" };
+    std::string err {
+      "Malformed 'receive_all_blocks' request: '" + data.dump() + "': " + e.what() };
 
     m_log.error(err);
 
