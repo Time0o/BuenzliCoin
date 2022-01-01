@@ -281,17 +281,20 @@ public:
 
   void construct_next_block(T data)
   {
-    if (!data.valid(m_blocks.size()))
-      throw std::logic_error("attempted appending invalid data");
-
     std::scoped_lock lock { m_mtx };
 
     std::unique_ptr<value_type> block;
 
-    if (m_blocks.empty())
+    if (m_blocks.empty()) {
+      data.link();
       block = std::make_unique<value_type>(std::move(data));
-    else
-      block = std::make_unique<value_type>(std::move(data), m_blocks.back());
+    } else {
+      data.link(latest_block().data());
+      block = std::make_unique<value_type>(std::move(data), latest_block());
+    }
+
+    if (!block->valid())
+      throw std::logic_error("attempted appending invalid data");
 
 #ifdef PROOF_OF_WORK
     m_difficulty_adjuster.adjust(block->timestamp());
@@ -299,7 +302,7 @@ public:
     block->adjust_difficulty(m_difficulty_adjuster.difficulty());
 #endif // PROOF_OF_WORK
 
-    link_next_block(std::move(*block));
+    m_blocks.emplace_back(std::move(*block));
   }
 
   void append_next_block(value_type block)
@@ -307,11 +310,15 @@ public:
     std::scoped_lock lock { m_mtx };
 
     if (m_blocks.empty()) {
+      block.m_data.link();
+
       if (!valid_genesis_block(block))
         throw std::logic_error("attempted appending invalid genesis block");
 
     } else {
-      if (!valid_next_block(block, m_blocks.back()))
+      block.m_data.link(latest_block().data());
+
+      if (!valid_next_block(block, latest_block()))
         throw std::logic_error("attempted appending invalid next block");
     }
 
@@ -322,7 +329,7 @@ public:
       throw std::logic_error("attempted appending a block with invalid difficulty");
 #endif // PROOF_OF_WORK
 
-    link_next_block(std::move(block));
+    m_blocks.emplace_back(std::move(block));
   }
 
   json to_json() const
@@ -372,16 +379,6 @@ private:
       return false;
 
     return true;
-  }
-
-  void link_next_block(value_type block)
-  {
-    if (m_blocks.empty())
-      block.m_data.make_genesis();
-    else
-      block.m_data.make_successor_of(m_blocks.back().m_data);
-
-    m_blocks.emplace_back(std::move(block));
   }
 
   std::vector<value_type> m_blocks;

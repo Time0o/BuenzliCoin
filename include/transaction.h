@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <list>
-#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -76,15 +75,21 @@ public:
   std::vector<output> const &outputs() const
   { return m_outputs; }
 
+  std::list<unspent_output> const &unspent_outputs() const
+  { return m_unspent_outputs; }
+
   bool valid() const
   {
     switch (m_type) {
     case Type::REWARD:
       return valid_reward();
     default:
-      return true; // XXX
+      return valid_standard();
     }
   }
+
+  void link();
+  void link(Transaction const &last);
 
   json to_json() const;
   static Transaction from_json(json const &j);
@@ -102,9 +107,12 @@ private:
   , m_outputs { std::move(outputs) }
   {}
 
+  bool valid_standard() const;
   bool valid_reward() const;
 
   digest determine_hash() const;
+
+  void update_unspent_outputs();
 
   Type m_type;
   std::size_t m_index;
@@ -112,6 +120,8 @@ private:
 
   std::vector<input> m_inputs;
   std::vector<output> m_outputs;
+  std::list<unspent_output> m_unspent_outputs_last;
+  std::list<unspent_output> m_unspent_outputs;
 };
 
 template<typename KEY_PAIR = ECSecp256k1KeyPair, typename HASHER = SHA256Hasher>
@@ -123,25 +133,19 @@ public:
   using output = transaction::output;
   using unspent_output = transaction::unspent_output;
 
+  std::vector<transaction> const &transactions() const
+  { return m_transactions; }
+
   output const &reward_output() const
   { return m_transactions[0].outputs()[0]; }
 
   std::list<unspent_output> unspent_outputs() const
-  { return *m_unspent_outputs; }
+  { return m_transactions.back().unspent_outputs(); }
 
   bool valid(std::size_t index) const;
 
-  void make_genesis()
-  {
-    m_unspent_outputs = std::make_unique<std::list<unspent_output>>();
-    update_unspent_outputs();
-  }
-
-  void make_successor_of(TransactionGroup &last)
-  {
-    m_unspent_outputs = std::move(last.m_unspent_outputs);
-    update_unspent_outputs();
-  }
+  void link();
+  void link(TransactionGroup const &last);
 
   json to_json() const;
   static TransactionGroup from_json(json const &j);
@@ -151,11 +155,7 @@ private:
   : m_transactions { std::move(transactions) }
   {}
 
-  void update_unspent_outputs() const;
-
   std::vector<transaction> m_transactions;
-
-  std::unique_ptr<std::list<unspent_output>> m_unspent_outputs;
 };
 
 } // end namespace bc

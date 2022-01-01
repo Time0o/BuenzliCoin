@@ -80,6 +80,27 @@ Transaction<KEY_PAIR, HASHER>::UTxO::to_json() const
 template json Transaction<>::UTxO::to_json() const;
 
 template<typename KEY_PAIR, typename HASHER>
+void
+Transaction<KEY_PAIR, HASHER>::link()
+{
+  update_unspent_outputs();
+}
+
+template void Transaction<>::link();
+
+template<typename KEY_PAIR, typename HASHER>
+void
+Transaction<KEY_PAIR, HASHER>::link(Transaction const &last)
+{
+  m_unspent_outputs_last = last.unspent_outputs();
+  m_unspent_outputs = m_unspent_outputs;
+
+  update_unspent_outputs();
+}
+
+template void Transaction<>::link(Transaction const &last);
+
+template<typename KEY_PAIR, typename HASHER>
 json
 Transaction<KEY_PAIR, HASHER>::to_json() const
 {
@@ -140,6 +161,54 @@ template Transaction<> Transaction<>::from_json(json const &data);
 
 template<typename KEY_PAIR, typename HASHER>
 bool
+Transaction<KEY_PAIR, HASHER>::valid_standard() const
+{
+  if (m_hash != determine_hash())
+    return false;
+
+  std::size_t txi_sum { 0 };
+
+  for (auto const &txi : m_inputs) {
+    std::string txi_address;
+
+    for (auto const &utxo : m_unspent_outputs_last) {
+      if (utxo.output_hash == txi.output_hash &&
+          utxo.output_index == txi.output_index) {
+
+        txi_address = utxo.output.address;
+        txi_sum += utxo.output.amount;
+      }
+    }
+
+    if (txi_address.empty())
+      return false;
+
+    try {
+      typename KEY_PAIR::public_key key { txi_address };
+
+      if (!key.verify(m_hash.to_string(), txi.signature))
+        return false;
+
+    } catch (...) {
+      return false;
+    }
+  }
+
+  std::size_t txo_sum { 0 };
+
+  for (auto const &txo : m_outputs)
+    txo_sum += txo.amount;
+
+  if (txi_sum != txo_sum)
+    return false;
+
+  return true;
+}
+
+template bool Transaction<>::valid_standard() const;
+
+template<typename KEY_PAIR, typename HASHER>
+bool
 Transaction<KEY_PAIR, HASHER>::valid_reward() const
 {
   if (m_hash != determine_hash())
@@ -181,13 +250,30 @@ Transaction<KEY_PAIR, HASHER>::determine_hash() const
 template Transaction<>::digest Transaction<>::determine_hash() const;
 
 template<typename KEY_PAIR, typename HASHER>
+void
+Transaction<KEY_PAIR, HASHER>::update_unspent_outputs()
+{
+  for (std::size_t i { 0 }; i < m_outputs.size(); ++i)
+    m_unspent_outputs.emplace_back(m_hash, i, m_outputs[i]);
+
+  for (auto const &txi : m_inputs) {
+    for (auto it { m_unspent_outputs.begin() }; it != m_unspent_outputs.end(); ++it) {
+      if (it->output_hash == txi.output_hash &&
+          it->output_index == txi.output_index) {
+
+        it = m_unspent_outputs.erase(it);
+      }
+    }
+  }
+}
+
+template void Transaction<>::update_unspent_outputs();
+
+template<typename KEY_PAIR, typename HASHER>
 bool
 TransactionGroup<KEY_PAIR, HASHER>::valid(std::size_t index) const
 {
   if (m_transactions.size() != config().transaction_num_per_block)
-    return false;
-
-  if (m_transactions[0].type() != transaction::Type::REWARD)
     return false;
 
   for (std::size_t i { 0 }; i < m_transactions.size(); ++i) {
@@ -238,30 +324,26 @@ template TransactionGroup<> TransactionGroup<>::from_json(json const &data);
 
 template<typename KEY_PAIR, typename HASHER>
 void
-TransactionGroup<KEY_PAIR, HASHER>::update_unspent_outputs() const
+TransactionGroup<KEY_PAIR, HASHER>::link()
 {
-  for (auto const &t : m_transactions) {
-    auto txohash { t.hash() };
-    auto const &txos { t.outputs() };
+  m_transactions[0].link();
 
-    for (std::size_t i { 0 }; i < txos.size(); ++i)
-      m_unspent_outputs->emplace_back(txohash, i, txos[i]);
-  }
-
-  for (auto const &t : m_transactions) {
-    for (auto const &txi : t.inputs()) {
-      for (auto it { m_unspent_outputs->begin() }; it != m_unspent_outputs->end(); ++it) {
-
-        if (it->output_hash == txi.output_hash &&
-            it->output_index == txi.output_index) {
-
-          it = m_unspent_outputs->erase(it);
-        }
-      }
-    }
-  }
+  for (std::size_t i { 1 }; i < m_transactions.size(); ++i)
+    m_transactions[i].link(m_transactions[i - 1]);
 }
 
-template void TransactionGroup<>::update_unspent_outputs() const;
+template void TransactionGroup<>::link();
+
+template<typename KEY_PAIR, typename HASHER>
+void
+TransactionGroup<KEY_PAIR, HASHER>::link(TransactionGroup const &last)
+{
+  m_transactions[0].link(last.transactions().back());
+
+  for (std::size_t i { 1 }; i < m_transactions.size(); ++i)
+    m_transactions[i].link(m_transactions[i - 1]);
+}
+
+template void TransactionGroup<>::link(TransactionGroup const &last);
 
 } // end namespace bc

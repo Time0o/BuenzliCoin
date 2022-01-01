@@ -1,11 +1,7 @@
 from unittest import TestCase, main
 import toml
 
-from Crypto.Hash import SHA256
-from Crypto.PublicKey import ECC
-from Crypto.Signature import DSS
-
-from bc import ECSecp256k1PrivateKey
+from bc import ECSecp256k1PrivateKey, SHA256Hasher
 from util.node import run_nodes
 
 
@@ -29,7 +25,7 @@ class TransactionTest(TestCase):
 
     def test_perform_transactions(self):
         with run_nodes(num_nodes=1, config=self.CONFIG, with_transactions=True) as node:
-            tx0 = self._create_transaction(
+            tx1 = self._create_transaction(
                 {
                     'type': 'reward',
                     'index': 0,
@@ -44,14 +40,14 @@ class TransactionTest(TestCase):
                 },
                 key=EC_PRIVATE_KEY1)
 
-            tx1 = self._create_transaction(
+            tx2 = self._create_transaction(
                 {
                     'type': 'standard',
                     'index': 0,
                     'hash': None,
                     'inputs': [
                         {
-                            'output_hash': tx0['hash'],
+                            'output_hash': tx1['hash'],
                             'output_index': 0,
                             'signature': None
                         }
@@ -69,16 +65,16 @@ class TransactionTest(TestCase):
                 },
                 key=EC_PRIVATE_KEY1)
 
-            node.add_block([tx0, tx1])
+            node.add_block([tx1, tx2])
 
-            utxos0 = node.transactions.unspent_outputs()
+            utxos = node.transactions.unspent_outputs()
 
-            self.assertEqual(len(utxos0), 2)
+            self.assertEqual(len(utxos), 2)
 
             self.assertDictEqual(
-                utxos0[0],
+                utxos[0],
                 {
-                    'output_hash': tx1['hash'],
+                    'output_hash': tx2['hash'],
                     'output_index': 0,
                     'output': {
                         'amount': self._reward_amount // 2,
@@ -87,9 +83,9 @@ class TransactionTest(TestCase):
                 })
 
             self.assertDictEqual(
-                utxos0[1],
+                utxos[1],
                 {
-                    'output_hash': tx1['hash'],
+                    'output_hash': tx2['hash'],
                     'output_index': 1,
                     'output': {
                         'amount': self._reward_amount // 2,
@@ -110,7 +106,6 @@ class TransactionTest(TestCase):
 
         for txi in t['inputs']:
             content += [
-                txi['output_index'],
                 txi['output_hash'],
                 txi['output_index']
             ]
@@ -139,7 +134,9 @@ class TransactionTest(TestCase):
 
     @classmethod
     def _hash(cls, msg):
-        return SHA256.new(msg.encode()).hexdigest()
+        hasher = SHA256Hasher()
+
+        return hasher.hash(msg)
 
     @classmethod
     def _sign(cls, msg, key):

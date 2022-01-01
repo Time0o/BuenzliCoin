@@ -18,11 +18,8 @@ public:
   bool valid(std::size_t) const
   { return true; }
 
-  void make_genesis()
-  {}
-
-  void make_successor_of(Text const &)
-  {}
+  void link() {}
+  void link(Text const &) {}
 
   json to_json() const
   { return m_text; }
