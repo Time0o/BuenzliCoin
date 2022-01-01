@@ -4,12 +4,16 @@ project(BuenzliMuenzli LANGUAGES CXX)
 
 include(CTest)
 
-find_package(Boost 1.67.0 COMPONENTS log_setup log program_options REQUIRED)
+include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+conan_basic_setup()
+
+find_package(Boost COMPONENTS log_setup log program_options REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
 find_package(fmt REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(pybind11 REQUIRED)
+
 find_program(PYTHON python3 REQUIRED)
 
 macro(bm_config target)
