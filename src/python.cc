@@ -6,6 +6,7 @@
 
 #include "blockchain.h"
 #include "config.h"
+#include "crypto/hash.h"
 #include "crypto/keypair.h"
 #include "json.h"
 #include "text.h"
@@ -83,5 +84,13 @@ PYBIND11_MODULE(bc, m)
             auto digest { ECSecp256k1PublicKey::digest::from_string(signature) };
 
             return key.verify(msg, digest);
+         });
+
+  py::class_<SHA256Hasher>(m, "SHA256Hasher")
+    .def(py::init<>())
+    .def("hash",
+         [](SHA256Hasher const &hasher, std::string_view msg)
+         {
+           return hasher.hash(msg).to_string();
          });
 }

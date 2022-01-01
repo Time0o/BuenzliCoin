@@ -5,7 +5,7 @@
 #include <new>
 #include <sstream>
 #include <stdexcept>
-#include <string>
+#include <string_view>
 
 #include <openssl/evp.h>
 #include <openssl/err.h>
@@ -25,7 +25,7 @@ protected:
   Hasher() = default;
 
 public:
-  digest hash(std::string const &msg) const
+  digest hash(std::string_view msg) const
   {
     auto mdctx { EVP_MD_CTX_new() };
     if (!(mdctx))
