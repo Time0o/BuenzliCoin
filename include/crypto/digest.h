@@ -7,7 +7,6 @@
 #include <iomanip>
 #include <stdexcept>
 #include <string>
-#include <tuple>
 #include <utility>
 
 namespace bc
@@ -74,15 +73,15 @@ public:
 
     ss << std::hex << std::setfill('0');
 
-    for (auto const &byte : m_arr)
-      ss << std::setw(2) << static_cast<int>(byte);
+    for (std::size_t i { 0 }; i < m_length; ++i)
+      ss << std::setw(2) << static_cast<int>(m_arr[i]);
 
     return ss.str();
   }
 
   static Digest from_string(std::string const &str)
   {
-    if (str.size() != std::tuple_size_v<array> * 2)
+    if (str.size() > DIGEST_LEN * 2)
       throw std::invalid_argument("invalid digest string");
 
     auto char_to_nibble = [](char c){
@@ -98,11 +97,15 @@ public:
       throw std::invalid_argument("invalid digest string");
     };
 
-    array d;
-    for (std::size_t i = 0; i < d.size(); ++i)
-      d[i] = (char_to_nibble(str[2 * i]) << 4) | char_to_nibble(str[2 * i + 1]);
+    array arr;
+    for (std::size_t i = 0; i < str.length() / 2; ++i)
+      arr[i] = (char_to_nibble(str[2 * i]) << 4) | char_to_nibble(str[2 * i + 1]);
 
-    return Digest { d };
+    Digest d { arr };
+
+    d.adjust_length(str.length() / 2);
+
+    return d;
   }
 
 private:
