@@ -4,12 +4,15 @@ project(BuenzliMuenzli LANGUAGES CXX)
 
 include(CTest)
 
-find_package(Boost 1.67.0 COMPONENTS log_setup log program_options REQUIRED)
+find_package(Boost COMPONENTS log_setup log program_options REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
 find_package(fmt REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(pybind11 REQUIRED)
+find_package(pybind11_json REQUIRED)
+find_package(tomlplusplus REQUIRED)
+
 find_program(PYTHON python3 REQUIRED)
 
 macro(bm_config target)
@@ -25,7 +28,9 @@ macro(bm_config target)
     OpenSSL::SSL
     Threads::Threads
     fmt::fmt
-    nlohmann_json::nlohmann_json)
+    nlohmann_json::nlohmann_json
+    pybind11_json::pybind11_json
+    tomlplusplus::tomlplusplus)
 endmacro()
 
 # Node binary.
