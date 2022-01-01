@@ -1,3 +1,4 @@
+import time
 import unittest
 
 from util.blockchain import assertBlockchainValid, assertBlockchainValues
@@ -45,6 +46,8 @@ class BlockchainTest(unittest.TestCase):
             assertBlockchainValues(self, node3.list_blocks(), ['node1'])
 
     def test_query_blockchains(self):
+        MAX_QUERY_TIME = 0.1
+
         with run_nodes(num_nodes=2) as (node1, node2):
             node1.add_block('first')
             node1.add_block('second')
@@ -52,9 +55,12 @@ class BlockchainTest(unittest.TestCase):
 
             node2.add_peer(node1)
 
+            time.sleep(MAX_QUERY_TIME)
+
             assertBlockchainValues(self, node2.list_blocks(), ['first', 'second', 'third'])
 
         with run_nodes(num_nodes=3) as (node1, node2, node3):
+
             node1.add_block('first')
             node1.add_block('second')
 
@@ -62,6 +68,8 @@ class BlockchainTest(unittest.TestCase):
             node1.add_peer(node3)
 
             node1.add_block('third')
+
+            time.sleep(MAX_QUERY_TIME)
 
             assertBlockchainValues(self, node2.list_blocks(), ['first', 'second', 'third'])
             assertBlockchainValues(self, node3.list_blocks(), ['first', 'second', 'third'])
