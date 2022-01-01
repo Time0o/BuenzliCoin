@@ -16,6 +16,30 @@
 namespace bc
 {
 
+namespace detail
+{
+
+inline std::string build_key(std::string_view key,
+                             std::string_view prefix,
+                             std::string_view header,
+                             std::string_view footer)
+{
+  auto full_key { std::string(prefix) + std::string(key) };
+
+  while (full_key.length() % 4 != 0)
+    full_key.push_back('=');
+
+  std::stringstream ss;
+
+  ss << header << '\n'
+     << full_key << '\n'
+     << footer;
+
+  return ss.str();
+}
+
+} // end namespace detail
+
 template<typename IMPL, typename TYPE, std::size_t DIGEST_LEN>
 class PrivateKey
 {
@@ -24,7 +48,7 @@ public:
 
 protected:
   PrivateKey(std::string_view key)
-  : m_key { build_key(key) }
+  : m_key { detail::build_key(key, IMPL::prefix(), IMPL::header(), IMPL::footer()) }
   {}
 
 public:
@@ -80,17 +104,6 @@ public:
   }
 
 private:
-  static std::string build_key(std::string_view key)
-  {
-    std::stringstream ss;
-
-    ss << IMPL::header() << '\n'
-       << IMPL::prefix() << key << '\n'
-       << IMPL::footer();
-
-    return ss.str();
-  }
-
   std::string m_key;
 };
 
@@ -102,7 +115,7 @@ public:
 
 protected:
   PublicKey(std::string_view key)
-  : m_key { build_key(key) }
+  : m_key { detail::build_key(key, IMPL::prefix(), IMPL::header(), IMPL::footer()) }
   {}
 
 public:
@@ -166,17 +179,6 @@ public:
   }
 
 private:
-  static std::string build_key(std::string_view key)
-  {
-    std::stringstream ss;
-
-    ss << IMPL::header() << '\n'
-       << IMPL::prefix() << key << '\n'
-       << IMPL::footer();
-
-    return ss.str();
-  }
-
   std::string m_key;
 };
 
@@ -199,14 +201,14 @@ public:
   {}
 
 private:
+  static std::string_view prefix()
+  { return "MHQCAQEEI"; }
+
   static std::string_view header()
   { return "-----BEGIN EC PRIVATE KEY-----"; }
 
   static std::string_view footer()
   { return "-----END EC PRIVATE KEY-----"; }
-
-  static std::string_view prefix()
-  { return "MHQCAQEEI"; }
 
   static EC_KEY *read_key(std::string_view key)
   {
@@ -234,14 +236,14 @@ public:
   {}
 
 private:
+  static std::string_view prefix()
+  { return "MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAE"; }
+
   static std::string_view header()
   { return "-----BEGIN PUBLIC KEY-----"; }
 
   static std::string_view footer()
   { return "-----END PUBLIC KEY-----"; }
-
-  static std::string_view prefix()
-  { return "MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAE"; }
 
   static EC_KEY *read_key(std::string_view key)
   {
