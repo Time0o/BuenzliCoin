@@ -6,6 +6,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"flag"
@@ -13,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 )
 
 func getBuenzliDir() (string, error) {
@@ -46,7 +48,7 @@ type wallet struct {
 	address string
 }
 
-func listWallets(buenzliDir string) ([]wallet, error) {
+func getWallets(buenzliDir string) ([]wallet, error) {
 	wallets := make([]wallet, 0)
 
 	// Open wallets file.
@@ -59,7 +61,7 @@ func listWallets(buenzliDir string) ([]wallet, error) {
 	defer walletsFile.Close()
 
 	// Parse wallets.
-	walletRe := regexp.MustCompile("([[:alnum:]]*): ([A-Za-z0-9+/=]*)")
+	walletRe := regexp.MustCompile("([[:alnum:]]*) (.*) ([A-Za-z0-9+/=]*)")
 
 	walletsScanner := bufio.NewScanner(walletsFile)
 	for walletsScanner.Scan() {
@@ -70,8 +72,10 @@ func listWallets(buenzliDir string) ([]wallet, error) {
 			return nil, errors.New(fmt.Sprintf("malformed wallet identifier '%s'", walletId))
 		}
 
-		// XXX Set address.
-		wallets = append(wallets, wallet{name: match[1], address: ""})
+		walletName := match[1]
+		walletAddress := match[3]
+
+		wallets = append(wallets, wallet{name: walletName, address: walletAddress})
 	}
 
 	return wallets, nil
@@ -80,7 +84,7 @@ func listWallets(buenzliDir string) ([]wallet, error) {
 // XXX Encrypt private keys.
 func createWallet(buenzliDir string, walletName string) error {
 	// Check that key does not already exist.
-	ws, err := listWallets(buenzliDir)
+	ws, err := getWallets(buenzliDir)
 	if err != nil {
 		return err
 	}
@@ -116,6 +120,8 @@ func createWallet(buenzliDir string, walletName string) error {
 		return err
 	}
 
+	keyStr := strings.Trim(base64.StdEncoding.EncodeToString(keyBytes), "=")
+
 	keyBlock := &pem.Block{
 		Type:  "EC PRIVATE KEY",
 		Bytes: keyBytes,
@@ -133,7 +139,9 @@ func createWallet(buenzliDir string, walletName string) error {
 		return err
 	}
 
-	if _, err := walletsFile.WriteString(fmt.Sprintf("%s: %s\n", walletName, keyFileName)); err != nil {
+	walletStr := fmt.Sprintf("%s %s %s\n", walletName, keyFileName, keyStr)
+
+	if _, err := walletsFile.WriteString(walletStr); err != nil {
 		return err
 	}
 
@@ -176,13 +184,13 @@ func run() int {
 	case "list_wallets":
 		listWalletsCmd.Parse(subcommandArgs)
 
-		ws, err := listWallets(buenzliDir)
+		ws, err := getWallets(buenzliDir)
 		if err != nil {
 			return failure(err)
 		}
 
 		for _, w := range ws {
-			fmt.Printf("%s: %s\n", w.name, w.address)
+			fmt.Printf("%s: %s...%s\n", w.name, w.address[:15], w.address[len(w.address)-15:])
 		}
 	case "create_wallet":
 		createWalletCmd.Parse(subcommandArgs)
