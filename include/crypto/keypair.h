@@ -19,20 +19,19 @@ namespace bc
 namespace detail
 {
 
-inline std::string build_key(std::string_view key,
-                             std::string_view prefix,
+inline std::string build_key(std::string_view key_,
                              std::string_view header,
                              std::string_view footer)
 {
-  auto full_key { std::string(prefix) + std::string(key) };
+  std::string key { key_ };
 
-  while (full_key.length() % 4 != 0)
-    full_key.push_back('=');
+  while (key.length() % 4 != 0)
+    key.push_back('=');
 
   std::stringstream ss;
 
   ss << header << '\n'
-     << full_key << '\n'
+     << key << '\n'
      << footer;
 
   return ss.str();
@@ -48,7 +47,7 @@ public:
 
 protected:
   PrivateKey(std::string_view key)
-  : m_key { detail::build_key(key, IMPL::prefix(), IMPL::header(), IMPL::footer()) }
+  : m_key { detail::build_key(key, IMPL::header(), IMPL::footer()) }
   {}
 
 public:
@@ -115,7 +114,7 @@ public:
 
 protected:
   PublicKey(std::string_view key)
-  : m_key { detail::build_key(key, IMPL::prefix(), IMPL::header(), IMPL::footer()) }
+  : m_key { detail::build_key(key, IMPL::header(), IMPL::footer()) }
   {}
 
 public:
@@ -201,9 +200,6 @@ public:
   {}
 
 private:
-  static std::string_view prefix()
-  { return "MHQCAQEEI"; }
-
   static std::string_view header()
   { return "-----BEGIN EC PRIVATE KEY-----"; }
 
@@ -236,9 +232,6 @@ public:
   {}
 
 private:
-  static std::string_view prefix()
-  { return "MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAE"; }
-
   static std::string_view header()
   { return "-----BEGIN PUBLIC KEY-----"; }
 
