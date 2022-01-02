@@ -72,44 +72,42 @@ void Node::websocket_setup()
 
 void Node::http_setup()
 {
-  // XXX Appropriately rename and add more block accessors.
-
-  m_http_server.support("/list-blocks",
+  m_http_server.support("/blocks",
                         HTTPServer::method::get,
                         [this](json const &)
-                        { return handle_list_blocks(); });
+                        { return handle_blocks_get(); });
 
-  m_http_server.support("/add-block",
+  m_http_server.support("/blocks",
                         HTTPServer::method::post,
                         [this](json const &data)
-                        { return handle_add_block(data); });
+                        { return handle_blocks_post(data); });
 
-  m_http_server.support("/list-peers",
+  m_http_server.support("/peers",
                         HTTPServer::method::get,
                         [this](json const &)
-                        { return handle_list_peers(); });
+                        { return handle_peers_get(); });
 
-  m_http_server.support("/add-peer",
+  m_http_server.support("/peers",
                         HTTPServer::method::post,
                         [this](json const &data)
-                        { return handle_add_peer(data); });
+                        { return handle_peers_post(data); });
 
 #ifdef TRANSACTIONS
-  m_http_server.support("/transactions/unspent-outputs",
+  m_http_server.support("/transactions/unspent",
                         HTTPServer::method::get,
                         [this](json const &)
-                        { return handle_transactions_unspent_outputs(); });
+                        { return handle_transactions_unspent_get(); });
 #endif // TRANSACTIONS
 }
 
-std::pair<HTTPServer::status, json> Node::handle_list_blocks() const
+std::pair<HTTPServer::status, json> Node::handle_blocks_get() const
 {
   json answer = m_blockchain.to_json();
 
   return { HTTPServer::status::ok, answer };
 }
 
-std::pair<HTTPServer::status, json> Node::handle_add_block(json const &data)
+std::pair<HTTPServer::status, json> Node::handle_blocks_post(json const &data)
 {
   m_log.info("Running 'add_block' handler");
 
@@ -130,14 +128,14 @@ std::pair<HTTPServer::status, json> Node::handle_add_block(json const &data)
   return { HTTPServer::status::ok, {} };
 }
 
-std::pair<HTTPServer::status, json> Node::handle_list_peers() const
+std::pair<HTTPServer::status, json> Node::handle_peers_get() const
 {
   m_log.info("Running 'list_peers' handler");
 
   return { HTTPServer::status::ok, m_websocket_peers.to_json() };
 }
 
-std::pair<HTTPServer::status, json> Node::handle_add_peer(json const &data)
+std::pair<HTTPServer::status, json> Node::handle_peers_post(json const &data)
 {
   m_log.info("Running 'add_peer' handler");
 
@@ -168,7 +166,7 @@ std::pair<HTTPServer::status, json> Node::handle_add_peer(json const &data)
 
 #ifdef TRANSACTIONS
 
-std::pair<HTTPServer::status, json> Node::handle_transactions_unspent_outputs() const
+std::pair<HTTPServer::status, json> Node::handle_transactions_unspent_get() const
 {
   m_log.info("Running 'transactions_unspent_outputs' handler");
 

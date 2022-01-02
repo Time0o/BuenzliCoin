@@ -14,13 +14,6 @@ class Node:
     SETUP_TIME = 0.25
     TEARDOWN_TIME = 0.25
 
-    class Transactions:
-        def __init__(self, node):
-            self._node = node
-
-        def unspent_outputs(self):
-            return self._node._api_call('transactions/unspent-outputs', 'get')
-
     def __init__(self,
                  name,
                  config='config/default.toml',
@@ -41,8 +34,6 @@ class Node:
         self._with_transactions = with_transactions
 
         self._api_url = f'{http_host}:{http_port}'
-
-        self.transactions = self.Transactions(self)
 
     def run(self):
         if self._with_proof_of_work and self._with_transactions:
@@ -73,10 +64,10 @@ class Node:
         self._process.wait()
 
     def add_block(self, data):
-        self._api_call('add-block', 'post', data=data)
+        self._api_call('blocks', 'post', data=data)
 
     def list_blocks(self):
-        return bc.Blockchain.from_json(self._api_call('list-blocks', 'get'))
+        return bc.Blockchain.from_json(self._api_call('blocks', 'get'))
 
     def add_peer(self, node):
         data = {
@@ -84,7 +75,13 @@ class Node:
             'port': node._websocket_port
         }
 
-        self._api_call('add-peer', 'post', data=data)
+        self._api_call('peers', 'post', data=data)
+
+    def list_peers(self):
+        return self._api_call('peers', 'get')
+
+    def list_unspent_transactions(self):
+        return self._api_call('transactions/unspent', 'get')
 
     def _api_call(self, func, method, data=None):
         method = getattr(requests, method)

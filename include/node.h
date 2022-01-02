@@ -42,12 +42,12 @@ private:
   void websocket_setup();
   void http_setup();
 
-  std::pair<HTTPServer::status, json> handle_list_blocks() const;
-  std::pair<HTTPServer::status, json> handle_add_block(json const &data);
-  std::pair<HTTPServer::status, json> handle_list_peers() const;
-  std::pair<HTTPServer::status, json> handle_add_peer(json const &data);
+  std::pair<HTTPServer::status, json> handle_blocks_get() const;
+  std::pair<HTTPServer::status, json> handle_blocks_post(json const &data);
+  std::pair<HTTPServer::status, json> handle_peers_get() const;
+  std::pair<HTTPServer::status, json> handle_peers_post(json const &data);
 #ifdef TRANSACTIONS
-  std::pair<HTTPServer::status, json> handle_transactions_unspent_outputs() const;
+  std::pair<HTTPServer::status, json> handle_transactions_unspent_get() const;
 #endif // TRANSACTIONS
 
   json handle_request_latest_block(json const &data) const;

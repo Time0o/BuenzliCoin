@@ -67,7 +67,7 @@ class TransactionTest(TestCase):
 
             node.add_block([tx1, tx2])
 
-            utxos = node.transactions.unspent_outputs()
+            utxos = node.list_unspent_transactions()
 
             self.assertEqual(len(utxos), 2)
 
