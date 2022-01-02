@@ -1,19 +1,16 @@
 cmake_minimum_required(VERSION 3.9)
 
-project(BuenzliMuenzli LANGUAGES CXX)
+project(BuenzliCoin LANGUAGES CXX)
 
-include(CTest)
+option(BUENZLI_BUILD_TESTS "Build BuenzliCoin unit and integration tests" ON)
+option(BUENZLI_BUILD_BUENZLI_SCRIPT "Build 'buenzli' script" ON)
 
 find_package(Boost COMPONENTS log_setup log program_options REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
 find_package(fmt REQUIRED)
 find_package(nlohmann_json REQUIRED)
-find_package(pybind11 REQUIRED)
-find_package(pybind11_json REQUIRED)
 find_package(tomlplusplus REQUIRED)
-
-find_program(PYTHON python3 REQUIRED)
 
 macro(bm_config target)
   target_compile_features(${target} PRIVATE cxx_std_20)
@@ -29,11 +26,10 @@ macro(bm_config target)
     Threads::Threads
     fmt::fmt
     nlohmann_json::nlohmann_json
-    pybind11_json::pybind11_json
     tomlplusplus::tomlplusplus)
 endmacro()
 
-# Node binary.
+# Build node binaries.
 add_executable(node
   src/config.cc
   src/log.cc
@@ -72,65 +68,95 @@ target_compile_definitions(node_trans PRIVATE -DTRANSACTIONS)
 
 bm_config(node_trans)
 
-# Python bindings.
-pybind11_add_module(bc src/python.cc)
+# Build tests.
+if (BUENZLI_BUILD_TESTS)
+  include(CTest)
 
-bm_config(bc)
+  if(BUILD_TESTING)
+    # Include Catch2.
+    find_package(Catch2 REQUIRED)
 
-# Tests.
-if(BUILD_TESTING)
-  find_package(Catch2 REQUIRED)
+    list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/Catch2/contrib)
 
-  list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/Catch2/contrib)
+    include(Catch)
 
-  include(Catch)
+    # Build unit tests.
+    macro(bm_unit_test target)
+      add_executable(${target} ${ARGN})
 
-  macro(bm_unit_test target)
-    add_executable(${target} ${ARGN})
+      bm_config(${target})
 
-    bm_config(${target})
+      target_link_libraries(${target} PRIVATE Catch2::Catch2)
 
-    target_link_libraries(${target} PRIVATE Catch2::Catch2)
+      catch_discover_tests(${target})
+    endmacro()
 
-    catch_discover_tests(${target})
-  endmacro()
+    bm_unit_test(difficulty_test
+      test/unit/difficulty_test.cc)
 
-  macro(bm_integration_test target)
-    add_test(
-      NAME ${target}
-      COMMAND ${CMAKE_COMMAND} -E env NODE=$<TARGET_FILE:node>
-                                      NODE_POW=$<TARGET_FILE:node_pow>
-                                      NODE_TRANS=$<TARGET_FILE:node_trans>
-                                      PYTHONPATH=$<TARGET_FILE_DIR:bc>
-              ${PYTHON} ${ARGN}
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-  endmacro()
+    bm_unit_test(hash_test
+      test/unit/crypto/hash_test.cc)
 
-  bm_unit_test(difficulty_test
-    test/unit/difficulty_test.cc)
+    bm_unit_test(keypair_test
+      test/unit/crypto/keypair_test.cc)
 
-  bm_unit_test(hash_test
-    test/unit/crypto/hash_test.cc)
+    bm_unit_test(http_test
+      src/web/http_client.cc
+      src/web/http_server.cc
+      test/unit/web/http_test.cc)
 
-  bm_unit_test(keypair_test
-    test/unit/crypto/keypair_test.cc)
+    bm_unit_test(websocket_test
+      src/web/websocket_client.cc
+      src/web/websocket_server.cc
+      test/unit/web/websocket_test.cc)
 
-  bm_unit_test(http_test
-    src/web/http_client.cc
-    src/web/http_server.cc
-    test/unit/web/http_test.cc)
+    # Build Python bindings
+    find_package(pybind11 REQUIRED)
+    find_package(pybind11_json REQUIRED)
 
-  bm_unit_test(websocket_test
-    src/web/websocket_client.cc
-    src/web/websocket_server.cc
-    test/unit/web/websocket_test.cc)
+    pybind11_add_module(bc src/python.cc)
 
-  bm_integration_test(blockchain_test
-    test/integration/blockchain_test.py)
+    target_link_libraries(bc PRIVATE pybind11_json::pybind11_json)
 
-  bm_integration_test(proof_of_work_test
-    test/integration/proof_of_work_test.py)
+    bm_config(bc)
 
-  bm_integration_test(transaction_test
-    test/integration/transaction_test.py)
+    # Build integration tests
+    find_program(PYTHON python3 REQUIRED)
+
+    macro(bm_integration_test target)
+      add_test(
+        NAME ${target}
+        COMMAND ${CMAKE_COMMAND} -E env NODE=$<TARGET_FILE:node>
+                                        NODE_POW=$<TARGET_FILE:node_pow>
+                                        NODE_TRANS=$<TARGET_FILE:node_trans>
+                                        PYTHONPATH=$<TARGET_FILE_DIR:bc>
+                ${PYTHON} ${ARGN}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    endmacro()
+
+    bm_integration_test(blockchain_test
+      test/integration/blockchain_test.py)
+
+    bm_integration_test(proof_of_work_test
+      test/integration/proof_of_work_test.py)
+
+    bm_integration_test(transaction_test
+      test/integration/transaction_test.py)
+  endif()
+endif()
+
+# Build 'buenzli' script.
+if (BUENZLI_BUILD_BUENZLI_SCRIPT)
+  find_program(GO go REQUIRED)
+
+  set(BUENZLI_SRC "${CMAKE_CURRENT_SOURCE_DIR}/buenzli/buenzli.go")
+  set(BUENZLI_BIN "${CMAKE_CURRENT_BINARY_DIR}/buenzli")
+
+  add_custom_command(
+    OUTPUT "${BUENZLI_BIN}"
+    COMMAND ${GO} build -o "${BUENZLI_BIN}" "${BUENZLI_SRC}"
+    DEPENDS "${BUENZLI_SRC}")
+
+  add_custom_target(buenzli_script ALL
+    DEPENDS "${BUENZLI_BIN}")
 endif()
