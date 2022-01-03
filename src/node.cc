@@ -36,6 +36,12 @@ void Node::run() const
 {
   m_log.info("Running node");
 
+  m_log.info("Websocket API reachable under {}:{}",
+             m_websocket_server.host(), m_websocket_server.port());
+
+  m_log.info("REST API reachable under {}:{}",
+             m_http_server.host(), m_http_server.port());
+
   std::thread websocket_server_thread([this]{ m_websocket_server.run(); });
   std::thread http_server_thread([this]{ m_http_server.run(); });
 
