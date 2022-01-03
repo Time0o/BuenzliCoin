@@ -23,7 +23,7 @@ namespace
 void parse_options(int argc,
                    char **argv,
                    std::string &name,
-                   std::string &config_,
+                   std::string &configuration,
                    std::string &websocket_host,
                    uint16_t &websocket_port,
                    std::string &http_host,
@@ -34,12 +34,12 @@ void parse_options(int argc,
 
   po::options_description options { "Node options" };
   options.add_options()
-    ("name", po::value<std::string>(&name)->required(), "node name")
-    ("config", po::value<std::string>(&config_)->required(), "configuration file")
-    ("websocket-host", po::value<std::string>(&websocket_host)->required(), "websocket server ip")
-    ("websocket-port", po::value<uint16_t>(&websocket_port)->required(), "websocket server port")
-    ("http-host", po::value<std::string>(&http_host)->required(), "http server ip")
-    ("http-port", po::value<uint16_t>(&http_port)->required(), "http server port")
+    ("name", po::value<std::string>(&name)->default_value("BuenzliNode"), "node name")
+    ("config", po::value<std::string>(&configuration)->default_value(""), "configuration file")
+    ("websocket-host", po::value<std::string>(&websocket_host)->default_value("127.0.0.1"), "websocket server ip")
+    ("websocket-port", po::value<uint16_t>(&websocket_port)->default_value(8332), "websocket server port")
+    ("http-host", po::value<std::string>(&http_host)->default_value("127.0.0.1"), "http server ip")
+    ("http-port", po::value<uint16_t>(&http_port)->default_value(8333), "http server port")
     ("verbose", po::bool_switch(&verbose)->default_value(false), "verbose log output");
 
   po::store(po::parse_command_line(argc, argv, options), vs);
@@ -83,7 +83,7 @@ int main(int argc, char **argv)
 
   try {
     std::string name;
-    std::string config_;
+    std::string configuration;
     std::string websocket_host;
     uint16_t websocket_port;
     std::string http_host;
@@ -93,7 +93,7 @@ int main(int argc, char **argv)
     parse_options(argc,
                   argv,
                   name,
-                  config_,
+                  configuration,
                   websocket_host,
                   websocket_port,
                   http_host,
@@ -102,7 +102,10 @@ int main(int argc, char **argv)
 
     log::init(verbose ? log::DEBUG : log::INFO);
 
-    config() = Config::from_toml(config_);
+    if (configuration.empty())
+      config() = Config::from_defaults();
+    else
+      config() = Config::from_toml(configuration);
 
     create_node(name,
                 websocket_host,

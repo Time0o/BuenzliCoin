@@ -25,8 +25,7 @@ struct Config
   // Number of coins sent by reward transaction.
   std::size_t transaction_reward_amount { 50 };
 
-  // XXX to_toml
-
+  static Config from_defaults() { return Config {}; }
   static Config from_toml(std::string const &filename);
 };
 
