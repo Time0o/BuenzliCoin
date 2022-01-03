@@ -235,20 +235,22 @@ json Node::handle_receive_latest_block(json const &data)
   else
     m_log.info("Current latest block: '{}'", m_blockchain.latest_block().to_json().dump());
 
-  std::optional<block> block;
+  std::unique_ptr<block> b;
 
   try {
-    block = block::from_json(data["block"]);
+    b = std::make_unique<block>(block::from_json(data["block"]));
 
-    if (!block->valid()) {
-      std::string err { "Invalid block: '" + block->to_json().dump() + "'" };
+    auto [b_valid, b_error] = b->valid();
+
+    if (!b_valid) {
+      std::string err { "Invalid block: '" + b->to_json().dump() + "': " + b_error };
 
       m_log.error(err);
 
       throw WebSocketError(err);
     }
 
-    m_log.debug("Received block: '{}'", block->to_json().dump());
+    m_log.debug("Received block: '{}'", b->to_json().dump());
 
   } catch (std::exception const &e) {
     std::string err {
@@ -259,7 +261,7 @@ json Node::handle_receive_latest_block(json const &data)
     throw WebSocketError(err);
   }
 
-  if (block->index() > m_blockchain.length()) {
+  if (b->index() > m_blockchain.length()) {
     std::string host;
     uint16_t port;
 
@@ -285,14 +287,14 @@ json Node::handle_receive_latest_block(json const &data)
 
     detach(&Node::request_all_blocks, peer_id);
 
-  } else if (block->index() == m_blockchain.length()) {
-    if (m_blockchain.empty() && block->is_genesis()) {
+  } else if (b->index() == m_blockchain.length()) {
+    if (m_blockchain.empty() && b->is_genesis()) {
       m_log.info("Appending new genesis block");
-      m_blockchain.append_next_block(std::move(*block));
+      m_blockchain.append_next_block(std::move(*b));
 
-    } else if (block->is_successor_of(m_blockchain.latest_block())) {
+    } else if (b->is_successor_of(m_blockchain.latest_block())) {
       m_log.info("Appending next block");
-      m_blockchain.append_next_block(std::move(*block));
+      m_blockchain.append_next_block(std::move(*b));
 
     } else {
       m_log.info("Ignoring block (not a valid successor)");
@@ -309,20 +311,22 @@ json Node::handle_receive_all_blocks(json const &data)
 {
   m_log.info("Running 'receive_all_blocks' handler");
 
-  std::optional<blockchain> blockchain;
+  std::unique_ptr<blockchain> bc;
 
   try {
-    blockchain = blockchain::from_json(data["blockchain"]);
+    bc = std::make_unique<blockchain>(blockchain::from_json(data["blockchain"]));
 
-    if (!blockchain->valid()) {
-      std::string err { "Invalid blockchain: '" + blockchain->to_json().dump() + "'" };
+    auto [bc_valid, bc_error] = bc->valid();
+
+    if (!bc_valid) {
+      std::string err { "Invalid blockchain: '" + bc->to_json().dump() + "': " + bc_error };
 
       m_log.error(err);
 
       throw WebSocketError(err);
     }
 
-    m_log.debug("Received blockchain: '{}'", blockchain->to_json().dump());
+    m_log.debug("Received blockchain: '{}'", bc->to_json().dump());
 
   } catch (std::exception const &e) {
     std::string err {
@@ -333,10 +337,10 @@ json Node::handle_receive_all_blocks(json const &data)
     throw WebSocketError(err);
   }
 
-  if (blockchain > m_blockchain) {
+  if (*bc > m_blockchain) {
     m_log.info("Replacing current blockchain");
 
-    m_blockchain = std::move(*blockchain);
+    m_blockchain = std::move(*bc);
   }
 
   return {};

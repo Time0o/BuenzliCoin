@@ -15,8 +15,8 @@ public:
   : m_text { std::move(text) }
   {}
 
-  bool valid(std::size_t) const
-  { return true; }
+  std::pair<bool, std::string> valid(std::size_t) const
+  { return { true, "" }; }
 
   void link() {}
   void link(Text const &) {}

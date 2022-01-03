@@ -78,7 +78,7 @@ public:
   std::list<unspent_output> const &unspent_outputs() const
   { return m_unspent_outputs; }
 
-  bool valid() const
+  std::pair<bool, std::string> valid() const
   {
     switch (m_type) {
     case Type::REWARD:
@@ -107,8 +107,8 @@ private:
   , m_outputs { std::move(outputs) }
   {}
 
-  bool valid_standard() const;
-  bool valid_reward() const;
+  std::pair<bool, std::string> valid_standard() const;
+  std::pair<bool, std::string> valid_reward() const;
 
   digest determine_hash() const;
 
@@ -142,7 +142,7 @@ public:
   std::list<unspent_output> unspent_outputs() const
   { return m_transactions.back().unspent_outputs(); }
 
-  bool valid(std::size_t index) const;
+  std::pair<bool, std::string> valid(std::size_t index) const;
 
   void link();
   void link(TransactionGroup const &last);

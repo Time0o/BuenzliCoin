@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "format.h"
 #include "json.h"
 #include "transaction.h"
 
@@ -160,15 +161,17 @@ Transaction<KEY_PAIR, HASHER>::from_json(json const &j)
 template Transaction<> Transaction<>::from_json(json const &data);
 
 template<typename KEY_PAIR, typename HASHER>
-bool
+std::pair<bool, std::string>
 Transaction<KEY_PAIR, HASHER>::valid_standard() const
 {
   if (m_hash != determine_hash())
-    return false;
+    return { false, "invalid hash" };
 
   std::size_t txi_sum { 0 };
 
-  for (auto const &txi : m_inputs) {
+  for (std::size_t i { 0 }; i < m_inputs.size(); ++i) {
+    auto const &txi { m_inputs[i] };
+
     std::string txi_address;
 
     for (auto const &utxo : m_unspent_outputs_last) {
@@ -181,16 +184,16 @@ Transaction<KEY_PAIR, HASHER>::valid_standard() const
     }
 
     if (txi_address.empty())
-      return false;
+      return { false, fmt::format("input {}: no corresponding unspent output found", i) };
 
     try {
       typename KEY_PAIR::public_key key { txi_address };
 
       if (!key.verify(m_hash.to_string(), txi.signature))
-        return false;
+        return { false, fmt::format("input {}: invalid signature", i) };
 
-    } catch (...) {
-      return false;
+    } catch (std::exception const &e) {
+      return { false, fmt::format("input {}: exception during signature validation: {}", i, e.what()) };
     }
   }
 
@@ -200,33 +203,33 @@ Transaction<KEY_PAIR, HASHER>::valid_standard() const
     txo_sum += txo.amount;
 
   if (txi_sum != txo_sum)
-    return false;
+    return { false, fmt::format("mismatched input/output sums") };
 
-  return true;
+  return { true, "" };
 }
 
-template bool Transaction<>::valid_standard() const;
+template std::pair<bool, std::string> Transaction<>::valid_standard() const;
 
 template<typename KEY_PAIR, typename HASHER>
-bool
+std::pair<bool, std::string>
 Transaction<KEY_PAIR, HASHER>::valid_reward() const
 {
   if (m_hash != determine_hash())
-    return false;
+    return { false, "invalid hash" };
 
   if (!m_inputs.empty())
-    return false;
+    return { false, "inputs must be empty" };
 
   if (m_outputs.size() != 1)
-    return false;
+    return { false, "more than one output" };
 
   if (m_outputs[0].amount != config().transaction_reward_amount)
-    return false;
+    return { false, "output amount does not match reward amount" };
 
-  return true;
+  return { true, "" };
 }
 
-template bool Transaction<>::valid_reward() const;
+template std::pair<bool, std::string> Transaction<>::valid_reward() const;
 
 template<typename KEY_PAIR, typename HASHER>
 Transaction<KEY_PAIR, HASHER>::digest
@@ -270,29 +273,31 @@ Transaction<KEY_PAIR, HASHER>::update_unspent_outputs()
 template void Transaction<>::update_unspent_outputs();
 
 template<typename KEY_PAIR, typename HASHER>
-bool
+std::pair<bool, std::string>
 TransactionGroup<KEY_PAIR, HASHER>::valid(std::size_t index) const
 {
   if (m_transactions.size() != config().transaction_num_per_block)
-    return false;
+    return { false, "invalid number of transactions" };
 
   for (std::size_t i { 0 }; i < m_transactions.size(); ++i) {
     auto const &t { m_transactions[i] };
 
     if (t.type() != (i == 0 ? transaction::Type::REWARD : transaction::Type::STANDARD))
-      return false;
+      return { false, fmt::format("transaction {}: invalid type", i) };
 
     if (t.index() != index)
-      return false;
+      return { false, fmt::format("transaction {}: invalid index", i) };
 
-    if (!t.valid())
-      return false;
+    auto [valid, error] = t.valid();
+
+    if (!valid)
+      return { false, fmt::format("transaction {}: {}", i, error) };
   }
 
-  return true;
+  return { true, "" };
 }
 
-template bool TransactionGroup<>::valid(std::size_t index) const;
+template std::pair<bool, std::string> TransactionGroup<>::valid(std::size_t index) const;
 
 template<typename KEY_PAIR, typename HASHER>
 json

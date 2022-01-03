@@ -16,6 +16,7 @@
 #include "clock.h"
 #include "crypto/hash.h"
 #include "difficulty.h"
+#include "format.h"
 #include "json.h"
 
 namespace bc
@@ -60,11 +61,20 @@ public:
   digest hash() const
   { return m_hash; }
 
-  bool valid() const
+  std::pair<bool, std::string> valid() const
   {
-    return (m_data.valid(m_index)) &&
-           (m_timestamp - config().block_gen_time_max_delta < clock::now()) &&
-           (m_hash == determine_hash());
+    auto [data_valid, data_error] = m_data.valid(m_index);
+
+    if (!data_valid)
+        return { false, fmt::format("invalid data: {}", data_error) };
+
+    if (m_timestamp - config().block_gen_time_max_delta >= clock::now())
+        return { false, "invalid timestamp" };
+
+    if (m_hash != determine_hash())
+        return { false, "invalid hash" };
+
+    return { true, "" };
   }
 
   bool is_genesis() const
@@ -231,27 +241,31 @@ public:
     return m_blocks.size();
   }
 
-  bool valid() const
+  std::pair<bool, std::string> valid() const
   {
     std::scoped_lock lock { m_mtx };
 
     if (m_blocks.empty())
-      return false;
+      return { false, "empty blockchain" };
 
-    for (auto const &block : m_blocks) {
-      if (!block.valid())
-        return false;
+    for (std::size_t i { 0 }; i < m_blocks.size(); ++i) {
+      auto const &block { m_blocks[i] };
+
+      auto [block_valid, block_error] = block.valid();
+
+      if (!block_valid)
+        return { false, fmt::format("block {}: {}", i, block_error) };
     }
 
     if (!m_blocks[0].is_genesis())
-      return false;
+      return { false, "invalid genesis block" };
 
     for (uint64_t i = 1; i < m_blocks.size(); ++i) {
       if (!m_blocks[i].is_successor_of(m_blocks[i - 1]))
-        return false;
+        return { false, fmt::format("block {}: not a valid successor", i) };
     }
 
-    return true;
+    return { true, "" };
   }
 
 #ifdef PROOF_OF_WORK
@@ -293,8 +307,10 @@ public:
       block = std::make_unique<value_type>(std::move(data), latest_block());
     }
 
-    if (!block->valid())
-      throw std::logic_error("attempted appending invalid data");
+    auto [block_valid, block_error] = block->valid();
+
+    if (!block_valid)
+      throw std::logic_error(fmt::format("attempted appending invalid data: {}", block_error));
 
 #ifdef PROOF_OF_WORK
     m_difficulty_adjuster.adjust(block->timestamp());
@@ -312,14 +328,20 @@ public:
     if (m_blocks.empty()) {
       block.m_data.link();
 
-      if (!valid_genesis_block(block))
-        throw std::logic_error("attempted appending invalid genesis block");
+      auto [valid, error] = valid_genesis_block(block);
+
+      if (!valid)
+        throw std::logic_error(
+          fmt::format("attempted appending invalid genesis block: {}", error));
 
     } else {
       block.m_data.link(latest_block().data());
 
-      if (!valid_next_block(block, latest_block()))
-        throw std::logic_error("attempted appending invalid next block");
+      auto [valid, error] = valid_next_block(block, latest_block());
+
+      if (!valid)
+        throw std::logic_error(
+          fmt::format("attempted appending invalid next block: {}", error));
     }
 
 #ifdef PROOF_OF_WORK
@@ -359,26 +381,39 @@ private:
   : m_blocks(blocks)
   {}
 
-  static bool valid_genesis_block(value_type const &block)
+  static std::pair<bool, std::string> valid_genesis_block(
+    value_type const &block)
   {
-    return block.index() == 0 &&
-           !block.m_hash_prev &&
-           block.valid();
+    if (block.index() != 0)
+      return { false, "invalid index" };
+
+    if (block.m_hash_prev)
+      return { false, "last hash not empty" };
+
+    auto [block_valid, block_error] = block.valid();
+
+    if (!block_valid)
+      return { false, block_error };
+
+    return { true, "" };
   }
 
-  static bool valid_next_block(value_type const &block,
-                               value_type const &block_prev)
+  static std::pair<bool, std::string> valid_next_block(
+    value_type const &block,
+    value_type const &block_prev)
   {
     if (block.index() != block_prev.index() + 1)
-      return false;
+      return { false, "invalid index" };
 
     if (!block.m_hash_prev || (*block.m_hash_prev != block_prev.m_hash))
-      return false;
+      return { false, "mismatched hashes" };
 
-    if (!block.valid())
-      return false;
+    auto [block_valid, block_error] = block.valid();
 
-    return true;
+    if (!block_valid)
+      return { false, block_error };
+
+    return { true, "" };
   }
 
   std::vector<value_type> m_blocks;
