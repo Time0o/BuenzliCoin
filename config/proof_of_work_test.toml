@@ -1,4 +1,4 @@
-[block_gen]
+[blockgen]
 time_expected = 500
 difficulty_init = 2
 difficulty_adjust_after = 10

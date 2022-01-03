@@ -20,10 +20,10 @@ TEST_CASE("difficulty_test", "[difficulty]")
   static constexpr std::size_t DIFFICULTY_ADJUST_AFTER { 10 };
   static constexpr double DIFFICULTY_ADJUST_FACTOR_LIMIT { 16 };
 
-  config().block_gen_time_expected = TIME_EXPECTED;
-  config().block_gen_difficulty_init = DIFFICULTY_INIT;
-  config().block_gen_difficulty_adjust_after = DIFFICULTY_ADJUST_AFTER;
-  config().block_gen_difficulty_adjust_factor_limit = DIFFICULTY_ADJUST_FACTOR_LIMIT;
+  config().blockgen_time_expected = TIME_EXPECTED;
+  config().blockgen_difficulty_init = DIFFICULTY_INIT;
+  config().blockgen_difficulty_adjust_after = DIFFICULTY_ADJUST_AFTER;
+  config().blockgen_difficulty_adjust_factor_limit = DIFFICULTY_ADJUST_FACTOR_LIMIT;
 
   DifficultyAdjuster da;
 

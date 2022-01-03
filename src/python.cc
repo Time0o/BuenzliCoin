@@ -51,16 +51,16 @@ PYBIND11_MODULE(bc, m)
     .def_static("from_json", &blockchain::from_json, "j"_a);
 
   py::class_<Config>(m, "Config")
-    .def_readwrite("block_gen_time_expected",
-                   &Config::block_gen_time_expected)
-    .def_readwrite("block_gen_time_max_delta",
-                   &Config::block_gen_time_max_delta)
-    .def_readwrite("block_gen_difficulty_init",
-                   &Config::block_gen_difficulty_init)
-    .def_readwrite("block_gen_difficulty_adjust_after",
-                   &Config::block_gen_difficulty_adjust_after)
-    .def_readwrite("block_gen_difficulty_adjust_factor_limit",
-                   &Config::block_gen_difficulty_adjust_factor_limit)
+    .def_readwrite("blockgen_time_expected",
+                   &Config::blockgen_time_expected)
+    .def_readwrite("blockgen_time_max_delta",
+                   &Config::blockgen_time_max_delta)
+    .def_readwrite("blockgen_difficulty_init",
+                   &Config::blockgen_difficulty_init)
+    .def_readwrite("blockgen_difficulty_adjust_after",
+                   &Config::blockgen_difficulty_adjust_after)
+    .def_readwrite("blockgen_difficulty_adjust_factor_limit",
+                   &Config::blockgen_difficulty_adjust_factor_limit)
     .def_readwrite("transaction_reward_amount",
                    &Config::transaction_reward_amount);
 

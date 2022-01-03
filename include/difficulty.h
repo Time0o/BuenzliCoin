@@ -12,7 +12,7 @@ class DifficultyAdjuster
 {
 public:
   DifficultyAdjuster()
-  : m_difficulty { config().block_gen_difficulty_init }
+  : m_difficulty { config().blockgen_difficulty_init }
   {}
 
   double difficulty() const
@@ -23,9 +23,9 @@ public:
 
   void adjust(clock::TimePoint timestamp)
   {
-    auto time_expected { config().block_gen_time_expected };
-    auto adjust_after { config().block_gen_difficulty_adjust_after };
-    auto adjust_factor_limit { config().block_gen_difficulty_adjust_factor_limit };
+    auto time_expected { config().blockgen_time_expected };
+    auto adjust_after { config().blockgen_difficulty_adjust_after };
+    auto adjust_factor_limit { config().blockgen_difficulty_adjust_factor_limit };
 
     if (m_counter == 0) {
       m_timestamp = timestamp;

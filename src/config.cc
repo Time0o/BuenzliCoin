@@ -48,21 +48,21 @@ Config Config::from_toml(std::string const &filename)
 
   auto t { toml::parse_file(filename) };
 
-  toml_for_table(t, "block_gen", [&cfg](auto const &t) {
+  toml_for_table(t, "blockgen", [&cfg](auto const &t) {
     toml_assign<clock::TimeInterval::rep>(
-      cfg.block_gen_time_expected, t,
+      cfg.blockgen_time_expected, t,
       "time_expected");
     toml_assign<clock::TimeInterval::rep>(
-      cfg.block_gen_time_max_delta, t,
+      cfg.blockgen_time_max_delta, t,
       "time_max_delta");
     toml_assign<double>(
-      cfg.block_gen_difficulty_init, t,
+      cfg.blockgen_difficulty_init, t,
       "difficulty_init");
     toml_assign<std::size_t>(
-      cfg.block_gen_difficulty_adjust_after, t,
+      cfg.blockgen_difficulty_adjust_after, t,
       "difficulty_adjust_after");
     toml_assign<double>(
-      cfg.block_gen_difficulty_adjust_factor_limit, t,
+      cfg.blockgen_difficulty_adjust_factor_limit, t,
       "difficulty_adjust_factor_limit");
   });
 

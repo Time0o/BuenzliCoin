@@ -1,0 +1,10 @@
+[blockgen]
+time_expected = 10000
+time_max_delta = 60000
+difficulty_init = 2
+difficulty_adjust_after = 10
+difficulty_adjust_factor_limit = 16
+
+[transaction]
+num_per_block = 10
+reward_amount = 50

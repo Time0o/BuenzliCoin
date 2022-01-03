@@ -14,10 +14,10 @@ class ProofOfWorkTest(TestCase):
     def setUpClass(cls):
         config = toml.load(cls.CONFIG)
 
-        cls._time_expected = timedelta(seconds=config['block_gen']['time_expected'])
-        cls._difficulty_init = config['block_gen']['difficulty_init']
-        cls._difficulty_adjust_after = config['block_gen']['difficulty_adjust_after']
-        cls._difficulty_adjust_factor_limit = config['block_gen']['difficulty_adjust_factor_limit']
+        cls._time_expected = timedelta(seconds=config['blockgen']['time_expected'])
+        cls._difficulty_init = config['blockgen']['difficulty_init']
+        cls._difficulty_adjust_after = config['blockgen']['difficulty_adjust_after']
+        cls._difficulty_adjust_factor_limit = config['blockgen']['difficulty_adjust_factor_limit']
 
     def test_build_blockchain(self):
         NUM_ADJUSTMENTS = 5

@@ -68,7 +68,7 @@ public:
     if (!data_valid)
         return { false, fmt::format("invalid data: {}", data_error) };
 
-    if (m_timestamp - config().block_gen_time_max_delta >= clock::now())
+    if (m_timestamp - config().blockgen_time_max_delta >= clock::now())
         return { false, "invalid timestamp" };
 
     if (m_hash != determine_hash())
@@ -82,7 +82,7 @@ public:
 
   bool is_successor_of(Block const &prev) const
   {
-    return (m_timestamp > prev.m_timestamp - config().block_gen_time_max_delta) &&
+    return (m_timestamp > prev.m_timestamp - config().blockgen_time_max_delta) &&
            (m_index == prev.m_index + 1) &&
            (m_hash_prev && *m_hash_prev == prev.m_hash);
   }
