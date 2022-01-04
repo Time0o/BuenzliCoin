@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.9)
 project(BuenzliCoin LANGUAGES CXX)
 
 option(BUENZLI_BUILD_TESTS "Build BuenzliCoin unit and integration tests" ON)
-option(BUENZLI_BUILD_BUENZLI_SCRIPT "Build 'buenzli' script" ON)
+option(BUENZLI_BUILD_BWALLET "Build 'buenzli' script" ON)
 
 find_package(Boost COMPONENTS log_setup log program_options REQUIRED)
 find_package(OpenSSL REQUIRED)
@@ -69,7 +69,7 @@ target_compile_definitions(node_trans PRIVATE -DTRANSACTIONS)
 bm_config(node_trans)
 
 # Build tests.
-if (BUENZLI_BUILD_TESTS)
+if (BWALLET_BUILD_TESTS)
   include(CTest)
 
   if(BUILD_TESTING)
@@ -145,18 +145,18 @@ if (BUENZLI_BUILD_TESTS)
   endif()
 endif()
 
-# Build 'buenzli' script.
-if (BUENZLI_BUILD_BUENZLI_SCRIPT)
+# Build 'bwallet' script.
+if (BUENZLI_BUILD_BWALLET)
   find_program(GO go REQUIRED)
 
-  set(BUENZLI_SRC "${CMAKE_CURRENT_SOURCE_DIR}/buenzli/buenzli.go")
-  set(BUENZLI_BIN "${CMAKE_CURRENT_BINARY_DIR}/buenzli")
+  set(BWALLET_SRC "${CMAKE_CURRENT_SOURCE_DIR}/bwallet/bwallet.go")
+  set(BWALLET_BIN "${CMAKE_CURRENT_BINARY_DIR}/bwallet")
 
   add_custom_command(
-    OUTPUT "${BUENZLI_BIN}"
-    COMMAND ${GO} build -o "${BUENZLI_BIN}" "${BUENZLI_SRC}"
-    DEPENDS "${BUENZLI_SRC}")
+    OUTPUT "${BWALLET_BIN}"
+    COMMAND ${GO} build -o "${BWALLET_BIN}" "${BWALLET_SRC}"
+    DEPENDS "${BWALLET_SRC}")
 
-  add_custom_target(buenzli_script ALL
-    DEPENDS "${BUENZLI_BIN}")
+  add_custom_target(bwallet_script ALL
+    DEPENDS "${BWALLET_BIN}")
 endif()
