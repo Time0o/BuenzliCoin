@@ -7,10 +7,13 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -43,6 +46,15 @@ func getBuenzliDir() (string, error) {
 	return buenzliDir, nil
 }
 
+func getBuenzliNode() (string, error) {
+	buenzliNode := os.Getenv("BUENZLI_NODE")
+	if buenzliNode == "" {
+		return "", errors.New("BUENZLI_NODE not set")
+	}
+
+	return buenzliNode, nil
+}
+
 type wallet struct {
 	name    string
 	address string
@@ -72,33 +84,38 @@ func getWallets(buenzliDir string) ([]wallet, error) {
 			return nil, errors.New(fmt.Sprintf("malformed wallet identifier '%s'", walletId))
 		}
 
-		walletName := match[1]
-		walletAddress := match[3]
-
-		wallets = append(wallets, wallet{name: walletName, address: walletAddress})
+		wallets = append(wallets, wallet{name: match[1], address: match[3]})
 	}
 
 	return wallets, nil
 }
 
-// XXX Encrypt private keys.
-func createWallet(buenzliDir string, walletName string) error {
-	// Check that key does not already exist.
+func findWallet(buenzliDir string, name string) (*wallet, error) {
 	ws, err := getWallets(buenzliDir)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	exists := false
 	for _, w := range ws {
-		if w.name == walletName {
-			exists = true
+		if w.name == name {
+			return &w, nil
 			break
 		}
 	}
 
-	if exists {
-		return errors.New(fmt.Sprintf("wallet '%s' already exist", walletName))
+	return nil, nil
+}
+
+// XXX Encrypt private keys.
+func createWallet(buenzliDir string, name string) error {
+	// Check that key does not already exist.
+	w, err := findWallet(buenzliDir, name)
+	if err != nil {
+		return err
+	}
+
+	if w != nil {
+		return errors.New(fmt.Sprintf("wallet '%s' already exist", name))
 	}
 
 	// Generate private key.
@@ -107,7 +124,7 @@ func createWallet(buenzliDir string, walletName string) error {
 		return err
 	}
 
-	keyFileName := "id_ecdsa_" + walletName
+	keyFileName := "id_ecdsa_" + name
 	keyFilePath := filepath.Join(buenzliDir, keyFileName)
 
 	keyPem, err := os.Create(keyFilePath)
@@ -139,13 +156,63 @@ func createWallet(buenzliDir string, walletName string) error {
 		return err
 	}
 
-	walletStr := fmt.Sprintf("%s %s %s\n", walletName, keyFileName, keyStr)
+	walletStr := fmt.Sprintf("%s %s %s\n", name, keyFileName, keyStr)
 
 	if _, err := walletsFile.WriteString(walletStr); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+type transactionOutput struct {
+	Amount  int
+	Address string
+}
+
+type transactionUnspentOutput struct {
+	OutputHash  string
+	OutputIndex int
+	Output      transactionOutput
+}
+
+func walletBalance(buenzliDir string, buenzliNode string, name string) (int, error) {
+	w, err := findWallet(buenzliDir, name)
+	if err != nil {
+		return -1, err
+	}
+
+	if w == nil {
+		return -1, errors.New(fmt.Sprintf("wallet '%s' does not exist", name))
+	}
+
+	resp, err := http.Get("http://" + buenzliNode + "/transactions/unspent")
+	if err != nil {
+		return -1, err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return -1, err
+	}
+
+	var unspentOutputs []transactionUnspentOutput
+
+	if err := json.Unmarshal(body, &unspentOutputs); err != nil {
+		return -1, err
+	}
+
+	balance := 0
+
+	for _, unspentOutput := range unspentOutputs {
+		output := unspentOutput.Output
+		if output.Address == w.address {
+			balance += output.Amount
+		}
+	}
+
+	return balance, nil
 }
 
 func success() int {
@@ -164,24 +231,35 @@ func run() int {
 		return failure(err)
 	}
 
+	// Locate buenzli node.
+	buenzliNode, err := getBuenzliNode()
+	if err != nil {
+		return failure(err)
+	}
+
 	// Parse command line arguments.
 	listWalletsCmd :=
-		flag.NewFlagSet("list_wallets", flag.ExitOnError)
+		flag.NewFlagSet("list", flag.ExitOnError)
 
 	createWalletCmd :=
-		flag.NewFlagSet("create_wallet", flag.ExitOnError)
+		flag.NewFlagSet("create", flag.ExitOnError)
 	createWalletCmdName :=
 		createWalletCmd.String("name", "", "wallet name")
 
+	walletBalanceCmd :=
+		flag.NewFlagSet("balance", flag.ExitOnError)
+	walletBalanceCmdOf :=
+		walletBalanceCmd.String("of", "", "wallet name")
+
 	if len(os.Args) < 2 {
-		return failure(errors.New("expected subcommand (list_wallets|create_wallet)"))
+		return failure(errors.New("expected subcommand (list|create|balance)"))
 	}
 
 	subcommand := os.Args[1]
 	subcommandArgs := os.Args[2:]
 
 	switch subcommand {
-	case "list_wallets":
+	case "list":
 		listWalletsCmd.Parse(subcommandArgs)
 
 		ws, err := getWallets(buenzliDir)
@@ -190,9 +268,9 @@ func run() int {
 		}
 
 		for _, w := range ws {
-			fmt.Printf("%s: %s...%s\n", w.name, w.address[:15], w.address[len(w.address)-15:])
+			fmt.Printf("%s: %s\n", w.name, w.address)
 		}
-	case "create_wallet":
+	case "create":
 		createWalletCmd.Parse(subcommandArgs)
 
 		if *createWalletCmdName == "" {
@@ -203,6 +281,19 @@ func run() int {
 		if err != nil {
 			return failure(err)
 		}
+	case "balance":
+		walletBalanceCmd.Parse(subcommandArgs)
+
+		if *walletBalanceCmdOf == "" {
+			return failure(errors.New("-of argument is required"))
+		}
+
+		balance, err := walletBalance(buenzliDir, buenzliNode, *walletBalanceCmdOf)
+		if err != nil {
+			return failure(err)
+		}
+
+		fmt.Println(balance)
 	default:
 		return failure(errors.New(fmt.Sprintf("unknown subcommand '%s'", subcommand)))
 	}
