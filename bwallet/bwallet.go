@@ -56,8 +56,8 @@ func getBuenzliNode() (string, error) {
 }
 
 type wallet struct {
-	name    string
-	address string
+	Name    string
+	Address string
 }
 
 func getWallets(buenzliDir string) ([]wallet, error) {
@@ -84,7 +84,7 @@ func getWallets(buenzliDir string) ([]wallet, error) {
 			return nil, errors.New(fmt.Sprintf("malformed wallet identifier '%s'", walletId))
 		}
 
-		wallets = append(wallets, wallet{name: match[1], address: match[3]})
+		wallets = append(wallets, wallet{Name: match[1], Address: match[3]})
 	}
 
 	return wallets, nil
@@ -97,7 +97,7 @@ func findWallet(buenzliDir string, name string) (*wallet, error) {
 	}
 
 	for _, w := range ws {
-		if w.name == name {
+		if w.Name == name {
 			return &w, nil
 			break
 		}
@@ -207,7 +207,7 @@ func walletBalance(buenzliDir string, buenzliNode string, name string) (int, err
 
 	for _, unspentOutput := range unspentOutputs {
 		output := unspentOutput.Output
-		if output.Address == w.address {
+		if output.Address == w.Address {
 			balance += output.Amount
 		}
 	}
@@ -268,7 +268,7 @@ func run() int {
 		}
 
 		for _, w := range ws {
-			fmt.Printf("%s: %s\n", w.name, w.address)
+			fmt.Printf("%s: %s\n", w.Name, w.Address)
 		}
 	case "create":
 		createWalletCmd.Parse(subcommandArgs)
