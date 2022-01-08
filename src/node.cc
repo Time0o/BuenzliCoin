@@ -108,6 +108,8 @@ void Node::http_setup()
 
 std::pair<HTTPServer::status, json> Node::handle_blocks_get() const
 {
+  m_log.info("Running 'GET /blocks' handler");
+
   json answer = m_blockchain.to_json();
 
   return { HTTPServer::status::ok, answer };
@@ -115,14 +117,14 @@ std::pair<HTTPServer::status, json> Node::handle_blocks_get() const
 
 std::pair<HTTPServer::status, json> Node::handle_blocks_post(json const &data)
 {
-  m_log.info("Running 'add_block' handler");
+  m_log.info("Running 'POST /blocks' handler");
 
   try {
     m_blockchain.construct_next_block(block::data_type::from_json(data));
 
   } catch (std::exception const &e) {
     std::string err {
-      "Malformed 'add_block' request: '" + data.dump() + "': " + e.what() };
+      "Malformed 'POST /blocks' request: '" + data.dump() + "': " + e.what() };
 
     m_log.error(err);
 
@@ -136,14 +138,14 @@ std::pair<HTTPServer::status, json> Node::handle_blocks_post(json const &data)
 
 std::pair<HTTPServer::status, json> Node::handle_peers_get() const
 {
-  m_log.info("Running 'list_peers' handler");
+  m_log.info("Running 'GET /peers' handler");
 
   return { HTTPServer::status::ok, m_websocket_peers.to_json() };
 }
 
 std::pair<HTTPServer::status, json> Node::handle_peers_post(json const &data)
 {
-  m_log.info("Running 'add_peer' handler");
+  m_log.info("Running 'POST /peers' handler");
 
   std::string host;
   uint16_t port;
@@ -154,7 +156,7 @@ std::pair<HTTPServer::status, json> Node::handle_peers_post(json const &data)
 
   } catch (std::exception const &e) {
     std::string err {
-      "Malformed 'add_peer' request: '" + data.dump() + "': " + e.what() };
+      "Malformed 'POST /peers' request: '" + data.dump() + "': " + e.what() };
 
     m_log.error(err);
 
@@ -174,7 +176,7 @@ std::pair<HTTPServer::status, json> Node::handle_peers_post(json const &data)
 
 std::pair<HTTPServer::status, json> Node::handle_transactions_unspent_get() const
 {
-  m_log.info("Running 'transactions_unspent_outputs' handler");
+  m_log.info("Running 'GET /transactions/unspent' handler");
 
   json answer = json::array();
 
