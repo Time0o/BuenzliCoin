@@ -69,7 +69,7 @@ target_compile_definitions(node_trans PRIVATE -DTRANSACTIONS)
 bm_config(node_trans)
 
 # Build tests.
-if (BWALLET_BUILD_TESTS)
+if (BUENZLI_BUILD_TESTS)
   include(CTest)
 
   if(BUILD_TESTING)
