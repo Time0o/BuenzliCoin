@@ -18,9 +18,6 @@ public:
   std::pair<bool, std::string> valid(std::size_t) const
   { return { true, "" }; }
 
-  void link() {}
-  void link(Text const &) {}
-
   json to_json() const
   { return m_text; }
 

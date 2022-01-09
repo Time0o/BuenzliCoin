@@ -44,7 +44,6 @@ class Transaction
     TxO output;
 
     json to_json() const;
-    static UTxO from_json(json const &j); // XXX
   };
 
 public:
@@ -78,6 +77,9 @@ public:
   std::list<unspent_output> const &unspent_outputs() const
   { return m_unspent_outputs; }
 
+  void update_unspent_outputs(std::list<unspent_output> unspent_outputs)
+  { m_unspent_outputs = std::move(unspent_outputs); }
+
   std::pair<bool, std::string> valid() const
   {
     switch (m_type) {
@@ -87,9 +89,6 @@ public:
       return valid_standard();
     }
   }
-
-  void link();
-  void link(Transaction const &last);
 
   json to_json() const;
   static Transaction from_json(json const &j);
@@ -112,50 +111,98 @@ private:
 
   digest determine_hash() const;
 
-  void update_unspent_outputs();
-
   Type m_type;
   std::size_t m_index;
   digest m_hash;
 
   std::vector<input> m_inputs;
   std::vector<output> m_outputs;
-  std::list<unspent_output> m_unspent_outputs_last;
   std::list<unspent_output> m_unspent_outputs;
 };
 
 template<typename KEY_PAIR = ECSecp256k1KeyPair, typename HASHER = SHA256Hasher>
-class TransactionGroup
+class TransactionList
 {
-public:
   using transaction = Transaction<KEY_PAIR, HASHER>;
 
-  using output = transaction::output;
-  using unspent_output = transaction::unspent_output;
+public:
+  std::vector<transaction> &transactions()
+  { return m_transactions; }
 
   std::vector<transaction> const &transactions() const
   { return m_transactions; }
 
-  output const &reward_output() const
-  { return m_transactions[0].outputs()[0]; }
-
-  std::list<unspent_output> unspent_outputs() const
-  { return m_transactions.back().unspent_outputs(); }
-
   std::pair<bool, std::string> valid(std::size_t index) const;
 
-  void link();
-  void link(TransactionGroup const &last);
-
   json to_json() const;
-  static TransactionGroup from_json(json const &j);
+  static TransactionList from_json(json const &j);
 
 private:
-  TransactionGroup(std::vector<transaction> transactions)
-  : m_transactions { std::move(transactions) }
+  TransactionList(std::vector<transaction> ts)
+  : m_transactions { std::move(ts) }
   {}
 
   std::vector<transaction> m_transactions;
+};
+
+template<typename KEY_PAIR = ECSecp256k1KeyPair, typename HASHER = SHA256Hasher>
+class TransactionUnspentOutputs
+{
+  using transaction = Transaction<KEY_PAIR, HASHER>;
+  using transaction_list = TransactionList<KEY_PAIR, HASHER>;
+
+public:
+  // XXX Source file
+  void update(transaction &t, bool undoable = true)
+  {
+    if (undoable)
+      m_unspent_outputs_last = m_unspent_outputs;
+
+    t.update_unspent_outputs(m_unspent_outputs);
+
+    auto const &hash { t.hash() };
+    auto const &inputs { t.inputs() };
+    auto const &outputs { t.outputs() };
+
+    for (std::size_t i { 0 }; i < outputs.size(); ++i)
+      m_unspent_outputs.emplace_back(hash, i, outputs[i]);
+
+    for (auto const &txi : inputs) {
+      for (auto it { m_unspent_outputs.begin() }; it != m_unspent_outputs.end(); ++it) {
+        if (it->output_hash == txi.output_hash &&
+            it->output_index == txi.output_index) {
+
+          it = m_unspent_outputs.erase(it);
+        }
+      }
+    }
+  }
+
+  // XXX Source file
+  void update(transaction_list &ts, bool undoable = true)
+  {
+    if (undoable)
+      m_unspent_outputs_last = m_unspent_outputs;
+
+    for (auto &t : ts.transactions())
+      update(t, false);
+  }
+
+  void undo_update()
+  { m_unspent_outputs = m_unspent_outputs_last; }
+
+  // XXX Source file
+  json to_json() const
+  {
+    json j = json::array();
+    for (auto const &utxo : m_unspent_outputs)
+      j.push_back(utxo.to_json());
+
+    return j;
+  }
+
+private:
+  std::list<typename transaction::unspent_output> m_unspent_outputs, m_unspent_outputs_last;
 };
 
 } // end namespace bc

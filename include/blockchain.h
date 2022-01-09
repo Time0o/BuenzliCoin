@@ -49,6 +49,9 @@ public:
     m_hash { determine_hash() }
   {}
 
+  T &data()
+  { return m_data; }
+
   T const &data() const
   { return m_data; }
 
@@ -299,13 +302,10 @@ public:
 
     std::unique_ptr<value_type> block;
 
-    if (m_blocks.empty()) {
-      data.link();
+    if (m_blocks.empty())
       block = std::make_unique<value_type>(std::move(data));
-    } else {
-      data.link(latest_block().data());
+    else
       block = std::make_unique<value_type>(std::move(data), latest_block());
-    }
 
     auto [block_valid, block_error] = block->valid();
 
@@ -326,8 +326,6 @@ public:
     std::scoped_lock lock { m_mtx };
 
     if (m_blocks.empty()) {
-      block.m_data.link();
-
       auto [valid, error] = valid_genesis_block(block);
 
       if (!valid)
@@ -335,8 +333,6 @@ public:
           fmt::format("attempted appending invalid genesis block: {}", error));
 
     } else {
-      block.m_data.link(latest_block().data());
-
       auto [valid, error] = valid_next_block(block, latest_block());
 
       if (!valid)

@@ -81,27 +81,6 @@ Transaction<KEY_PAIR, HASHER>::UTxO::to_json() const
 template json Transaction<>::UTxO::to_json() const;
 
 template<typename KEY_PAIR, typename HASHER>
-void
-Transaction<KEY_PAIR, HASHER>::link()
-{
-  update_unspent_outputs();
-}
-
-template void Transaction<>::link();
-
-template<typename KEY_PAIR, typename HASHER>
-void
-Transaction<KEY_PAIR, HASHER>::link(Transaction const &last)
-{
-  m_unspent_outputs_last = last.unspent_outputs();
-  m_unspent_outputs = m_unspent_outputs;
-
-  update_unspent_outputs();
-}
-
-template void Transaction<>::link(Transaction const &last);
-
-template<typename KEY_PAIR, typename HASHER>
 json
 Transaction<KEY_PAIR, HASHER>::to_json() const
 {
@@ -174,7 +153,7 @@ Transaction<KEY_PAIR, HASHER>::valid_standard() const
 
     std::string txi_address;
 
-    for (auto const &utxo : m_unspent_outputs_last) {
+    for (auto const &utxo : m_unspent_outputs) {
       if (utxo.output_hash == txi.output_hash &&
           utxo.output_index == txi.output_index) {
 
@@ -253,28 +232,8 @@ Transaction<KEY_PAIR, HASHER>::determine_hash() const
 template Transaction<>::digest Transaction<>::determine_hash() const;
 
 template<typename KEY_PAIR, typename HASHER>
-void
-Transaction<KEY_PAIR, HASHER>::update_unspent_outputs()
-{
-  for (std::size_t i { 0 }; i < m_outputs.size(); ++i)
-    m_unspent_outputs.emplace_back(m_hash, i, m_outputs[i]);
-
-  for (auto const &txi : m_inputs) {
-    for (auto it { m_unspent_outputs.begin() }; it != m_unspent_outputs.end(); ++it) {
-      if (it->output_hash == txi.output_hash &&
-          it->output_index == txi.output_index) {
-
-        it = m_unspent_outputs.erase(it);
-      }
-    }
-  }
-}
-
-template void Transaction<>::update_unspent_outputs();
-
-template<typename KEY_PAIR, typename HASHER>
 std::pair<bool, std::string>
-TransactionGroup<KEY_PAIR, HASHER>::valid(std::size_t index) const
+TransactionList<KEY_PAIR, HASHER>::valid(std::size_t index) const
 {
   if (m_transactions.size() != config().transaction_num_per_block)
     return { false, "invalid number of transactions" };
@@ -297,11 +256,11 @@ TransactionGroup<KEY_PAIR, HASHER>::valid(std::size_t index) const
   return { true, "" };
 }
 
-template std::pair<bool, std::string> TransactionGroup<>::valid(std::size_t index) const;
+template std::pair<bool, std::string> TransactionList<>::valid(std::size_t index) const;
 
 template<typename KEY_PAIR, typename HASHER>
 json
-TransactionGroup<KEY_PAIR, HASHER>::to_json() const
+TransactionList<KEY_PAIR, HASHER>::to_json() const
 {
   json j = json::array();
 
@@ -311,44 +270,20 @@ TransactionGroup<KEY_PAIR, HASHER>::to_json() const
   return j;
 }
 
-template json TransactionGroup<>::to_json() const;
+template json TransactionList<>::to_json() const;
 
 template<typename KEY_PAIR, typename HASHER>
-TransactionGroup<KEY_PAIR, HASHER>
-TransactionGroup<KEY_PAIR, HASHER>::from_json(json const &j)
+TransactionList<KEY_PAIR, HASHER>
+TransactionList<KEY_PAIR, HASHER>::from_json(json const &j)
 {
   std::vector<transaction> ts;
 
   for (auto const &j_ : j)
     ts.emplace_back(transaction::from_json(j_));
 
-  return TransactionGroup { ts };
+  return TransactionList { ts };
 }
 
-template TransactionGroup<> TransactionGroup<>::from_json(json const &data);
-
-template<typename KEY_PAIR, typename HASHER>
-void
-TransactionGroup<KEY_PAIR, HASHER>::link()
-{
-  m_transactions[0].link();
-
-  for (std::size_t i { 1 }; i < m_transactions.size(); ++i)
-    m_transactions[i].link(m_transactions[i - 1]);
-}
-
-template void TransactionGroup<>::link();
-
-template<typename KEY_PAIR, typename HASHER>
-void
-TransactionGroup<KEY_PAIR, HASHER>::link(TransactionGroup const &last)
-{
-  m_transactions[0].link(last.transactions().back());
-
-  for (std::size_t i { 1 }; i < m_transactions.size(); ++i)
-    m_transactions[i].link(m_transactions[i - 1]);
-}
-
-template void TransactionGroup<>::link(TransactionGroup const &last);
+template TransactionList<> TransactionList<>::from_json(json const &data);
 
 } // end namespace bc

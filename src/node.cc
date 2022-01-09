@@ -120,7 +120,23 @@ std::pair<HTTPServer::status, json> Node::handle_blocks_post(json const &data)
   m_log.info("Running 'POST /blocks' handler");
 
   try {
-    m_blockchain.construct_next_block(block::data_type::from_json(data));
+    auto t { block::data_type::from_json(data) };
+
+#ifdef TRANSACTIONS
+    m_transaction_unspent_outputs.update(t);
+
+    try {
+      m_blockchain.construct_next_block(t);
+
+    } catch (std::exception const &e) {
+      m_transaction_unspent_outputs.undo_update();
+
+      throw;
+    }
+#else
+    m_blockchain.construct_next_block(t);
+
+#endif // TRANSACTIONS
 
   } catch (std::exception const &e) {
     std::string err {
@@ -178,16 +194,7 @@ std::pair<HTTPServer::status, json> Node::handle_transactions_unspent_get() cons
 {
   m_log.info("Running 'GET /transactions/unspent' handler");
 
-  json answer = json::array();
-
-  if (m_blockchain.empty())
-    return answer;
-
-  auto const &block { m_blockchain.latest_block() };
-  auto const &transactions { block.data() };
-
-  for (auto const &utxo : transactions.unspent_outputs())
-    answer.push_back(utxo.to_json());
+  json answer = m_transaction_unspent_outputs.to_json();
 
   return { HTTPServer::status::ok, answer };
 }
@@ -242,12 +249,20 @@ json Node::handle_receive_latest_block(json const &data)
   try {
     b = std::make_unique<block>(block::from_json(data["block"]));
 
+#ifdef TRANSACTIONS
+    m_transaction_unspent_outputs.update(b->data());
+#endif // TRANSACTIONS
+
     auto [b_valid, b_error] = b->valid();
 
     if (!b_valid) {
       std::string err { "Invalid block: '" + b->to_json().dump() + "': " + b_error };
 
       m_log.error(err);
+
+#ifdef TRANSACTION
+      m_transactions_unspent_outputs.undo_update();
+#endif // TRANSACTIONS
 
       throw WebSocketError(err);
     }
@@ -277,6 +292,10 @@ json Node::handle_receive_latest_block(json const &data)
 
       m_log.error(err);
 
+#ifdef TRANSACTION
+      m_transactions_unspent_outputs.undo_update();
+#endif // TRANSACTIONS
+
       throw WebSocketError(err);
     }
 
@@ -300,10 +319,18 @@ json Node::handle_receive_latest_block(json const &data)
 
     } else {
       m_log.info("Ignoring block (not a valid successor)");
+
+#ifdef TRANSACTION
+      m_transactions_unspent_outputs.undo_update();
+#endif // TRANSACTIONS
     }
 
   } else {
     m_log.info("Ignoring block (not a successor)");
+
+#ifdef TRANSACTION
+      m_transactions_unspent_outputs.undo_update();
+#endif // TRANSACTIONS
   }
 
   return {};

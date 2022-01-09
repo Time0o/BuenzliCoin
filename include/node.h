@@ -20,14 +20,6 @@ namespace bc
 
 class Node
 {
-#ifdef TRANSACTIONS
-  using block = Block<TransactionGroup<>>;
-  using blockchain = Blockchain<TransactionGroup<>>;
-#else
-  using block = Block<Text>;
-  using blockchain = Blockchain<Text>;
-#endif // TRANSACTION
-
 public:
   Node(std::string const &name,
        std::string const &websocket_addr,
@@ -72,6 +64,16 @@ private:
   uuid::UUID m_uuid;
 
   log::Logger m_log;
+
+#ifdef TRANSACTIONS
+  using block = Block<TransactionList<>>;
+  using blockchain = Blockchain<TransactionList<>>;
+
+  TransactionUnspentOutputs<> m_transaction_unspent_outputs;
+#else
+  using block = Block<Text>;
+  using blockchain = Blockchain<Text>;
+#endif // TRANSACTION
 
   blockchain m_blockchain;
 
