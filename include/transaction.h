@@ -11,6 +11,7 @@
 #include "crypto/hash.h"
 #include "crypto/keypair.h"
 #include "json.h"
+#include "undo_helper.h"
 
 namespace bc
 {
@@ -153,11 +154,32 @@ class TransactionUnspentOutputs
 
 public:
   // XXX Source file
-  void update(transaction &t, bool undoable = true)
+  UndoHelper update(transaction_list &ts)
   {
-    if (undoable)
-      m_unspent_outputs_last = m_unspent_outputs;
+    m_unspent_outputs_last = m_unspent_outputs;
 
+    UndoHelper helper([this]{ m_unspent_outputs = m_unspent_outputs_last; });
+
+    for (auto &t : ts.transactions())
+      update(t);
+
+    return std::move(helper);
+  }
+
+  // XXX Source file
+  json to_json() const
+  {
+    json j = json::array();
+    for (auto const &utxo : m_unspent_outputs)
+      j.push_back(utxo.to_json());
+
+    return j;
+  }
+
+private:
+  // XXX Source file.
+  void update(transaction &t)
+  {
     t.update_unspent_outputs(m_unspent_outputs);
 
     auto const &hash { t.hash() };
@@ -178,30 +200,6 @@ public:
     }
   }
 
-  // XXX Source file
-  void update(transaction_list &ts, bool undoable = true)
-  {
-    if (undoable)
-      m_unspent_outputs_last = m_unspent_outputs;
-
-    for (auto &t : ts.transactions())
-      update(t, false);
-  }
-
-  void undo_update()
-  { m_unspent_outputs = m_unspent_outputs_last; }
-
-  // XXX Source file
-  json to_json() const
-  {
-    json j = json::array();
-    for (auto const &utxo : m_unspent_outputs)
-      j.push_back(utxo.to_json());
-
-    return j;
-  }
-
-private:
   std::list<typename transaction::unspent_output> m_unspent_outputs, m_unspent_outputs_last;
 };
 

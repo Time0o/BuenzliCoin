@@ -123,19 +123,13 @@ std::pair<HTTPServer::status, json> Node::handle_blocks_post(json const &data)
     auto t { block::data_type::from_json(data) };
 
 #ifdef TRANSACTIONS
-    m_transaction_unspent_outputs.update(t);
+    auto update_unspent_outputs { m_transaction_unspent_outputs.update(t) };
+#endif // TRANSACTIONS
 
-    try {
-      m_blockchain.construct_next_block(t);
-
-    } catch (std::exception const &e) {
-      m_transaction_unspent_outputs.undo_update();
-
-      throw;
-    }
-#else
     m_blockchain.construct_next_block(t);
 
+#ifdef TRANSACTIONS
+    update_unspent_outputs.doit();
 #endif // TRANSACTIONS
 
   } catch (std::exception const &e) {
@@ -250,7 +244,7 @@ json Node::handle_receive_latest_block(json const &data)
     b = std::make_unique<block>(block::from_json(data["block"]));
 
 #ifdef TRANSACTIONS
-    m_transaction_unspent_outputs.update(b->data());
+    auto update_unspent_outputs { m_transaction_unspent_outputs.update(b->data()) };
 #endif // TRANSACTIONS
 
     auto [b_valid, b_error] = b->valid();
@@ -260,14 +254,56 @@ json Node::handle_receive_latest_block(json const &data)
 
       m_log.error(err);
 
-#ifdef TRANSACTION
-      m_transactions_unspent_outputs.undo_update();
-#endif // TRANSACTIONS
-
       throw WebSocketError(err);
     }
 
     m_log.debug("Received block: '{}'", b->to_json().dump());
+
+    if (b->index() > m_blockchain.length()) {
+      std::string host;
+      uint16_t port;
+
+      try {
+        host = data["origin"]["host"].get<std::string>();
+        port = data["origin"]["port"].get<uint16_t>();
+
+      } catch (std::exception const &e) {
+        std::string err {
+          "Malformed 'receive_latest_block' request: '" + data.dump() + "'" + e.what() };
+
+        m_log.error(err);
+
+        throw WebSocketError(err);
+      }
+
+      auto peer_id { m_websocket_peers.find(host, port) };
+
+      if (peer_id == 0)
+        peer_id = m_websocket_peers.add(host, port);
+
+      m_log.info("Peer is {}:{}", host, port);
+
+      detach(&Node::request_all_blocks, peer_id);
+
+    } else if (b->index() == m_blockchain.length()) {
+      if ((m_blockchain.empty() && b->is_genesis()) ||
+          (!m_blockchain.empty() && b->is_successor_of(m_blockchain.latest_block()))) {
+
+        m_log.info("Appending next block");
+
+        m_blockchain.append_next_block(std::move(*b));
+
+#ifdef TRANSACTIONS
+        update_unspent_outputs.doit();
+#endif // TRANSACTIONS
+
+      } else {
+        m_log.info("Ignoring block (not a valid successor)");
+      }
+
+    } else {
+      m_log.info("Ignoring block (not a successor)");
+    }
 
   } catch (std::exception const &e) {
     std::string err {
@@ -278,60 +314,6 @@ json Node::handle_receive_latest_block(json const &data)
     throw WebSocketError(err);
   }
 
-  if (b->index() > m_blockchain.length()) {
-    std::string host;
-    uint16_t port;
-
-    try {
-      host = data["origin"]["host"].get<std::string>();
-      port = data["origin"]["port"].get<uint16_t>();
-
-    } catch (std::exception const &e) {
-      std::string err {
-        "Malformed 'receive_latest_block' request: '" + data.dump() + "'" + e.what() };
-
-      m_log.error(err);
-
-#ifdef TRANSACTION
-      m_transactions_unspent_outputs.undo_update();
-#endif // TRANSACTIONS
-
-      throw WebSocketError(err);
-    }
-
-    auto peer_id { m_websocket_peers.find(host, port) };
-
-    if (peer_id == 0)
-      peer_id = m_websocket_peers.add(host, port);
-
-    m_log.info("Peer is {}:{}", host, port);
-
-    detach(&Node::request_all_blocks, peer_id);
-
-  } else if (b->index() == m_blockchain.length()) {
-    if (m_blockchain.empty() && b->is_genesis()) {
-      m_log.info("Appending new genesis block");
-      m_blockchain.append_next_block(std::move(*b));
-
-    } else if (b->is_successor_of(m_blockchain.latest_block())) {
-      m_log.info("Appending next block");
-      m_blockchain.append_next_block(std::move(*b));
-
-    } else {
-      m_log.info("Ignoring block (not a valid successor)");
-
-#ifdef TRANSACTION
-      m_transactions_unspent_outputs.undo_update();
-#endif // TRANSACTIONS
-    }
-
-  } else {
-    m_log.info("Ignoring block (not a successor)");
-
-#ifdef TRANSACTION
-      m_transactions_unspent_outputs.undo_update();
-#endif // TRANSACTIONS
-  }
 
   return {};
 }
