@@ -39,6 +39,7 @@ private:
   std::pair<HTTPServer::status, json> handle_peers_get() const;
   std::pair<HTTPServer::status, json> handle_peers_post(json const &data);
 #ifdef TRANSACTIONS
+  std::pair<HTTPServer::status, json> handle_transactions_unconfirmed_post(json const &data);
   std::pair<HTTPServer::status, json> handle_transactions_unspent_get() const;
 #endif // TRANSACTIONS
 
@@ -66,13 +67,20 @@ private:
   log::Logger m_log;
 
 #ifdef TRANSACTIONS
-  using block = Block<TransactionList<>>;
-  using blockchain = Blockchain<TransactionList<>>;
+  using transaction = Transaction<>;
+  using transaction_list = TransactionList<>;
+
+  using block = Block<transaction_list>;
+  using blockchain = Blockchain<transaction_list>;
 
   TransactionUnspentOutputs<> m_transaction_unspent_outputs;
+  TransactionUnconfirmedPool<> m_transaction_unconfirmed_pool;
+
 #else
+
   using block = Block<Text>;
   using blockchain = Blockchain<Text>;
+
 #endif // TRANSACTION
 
   blockchain m_blockchain;

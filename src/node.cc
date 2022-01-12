@@ -99,6 +99,11 @@ void Node::http_setup()
                         { return handle_peers_post(data); });
 
 #ifdef TRANSACTIONS
+  m_http_server.support("/transactions/unconfirmed",
+                        HTTPServer::method::post,
+                        [this](json const &data)
+                        { return handle_transactions_unconfirmed_post(data); });
+
   m_http_server.support("/transactions/unspent",
                         HTTPServer::method::get,
                         [this](json const &)
@@ -183,6 +188,27 @@ std::pair<HTTPServer::status, json> Node::handle_peers_post(json const &data)
 }
 
 #ifdef TRANSACTIONS
+
+std::pair<HTTPServer::status, json> Node::handle_transactions_unconfirmed_post(json const &data)
+{
+  m_log.info("Running 'POST /transactions/unconfirmed' handler");
+
+  try {
+    auto t { transaction::from_json(data) };
+
+    m_transaction_unconfirmed_pool.update(std::move(t));
+
+  } catch (std::exception const &e) {
+    std::string err {
+      "Malformed 'POST /transactions/unconfirmed' request: '" + data.dump() + "': " + e.what() };
+
+    m_log.error(err);
+
+    throw HTTPError { HTTPServer::status::bad_request, err };
+  }
+
+  return { HTTPServer::status::ok, {} };
+}
 
 std::pair<HTTPServer::status, json> Node::handle_transactions_unspent_get() const
 {

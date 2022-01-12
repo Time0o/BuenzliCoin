@@ -10,6 +10,7 @@
 #include "crypto/digest.h"
 #include "crypto/hash.h"
 #include "crypto/keypair.h"
+#include "format.h"
 #include "json.h"
 #include "undo_helper.h"
 
@@ -24,6 +25,12 @@ class Transaction
     HASHER::digest output_hash; // Hash of transaction containing TxO.
     std::size_t output_index; // Index of TxO in transaction.
     KEY_PAIR::digest signature;
+
+    bool operator==(TxI const &other) const
+    {
+      return output_hash == other.output_hash &&
+             output_index == other.output_index;
+    }
 
     json to_json() const;
     static TxI from_json(json const &j);
@@ -201,6 +208,43 @@ private:
   }
 
   std::list<typename transaction::unspent_output> m_unspent_outputs, m_unspent_outputs_last;
+};
+
+// TODO 1: Add POST endpoint that just adds to pool [x]
+// TODO 2: Return pool via GET endpoint
+// TODO 3: Construct new blocks from pool
+// TODO 4: Propagate pool between nodes
+// TODO 5: Update pool on every new block
+template<typename KEY_PAIR = ECSecp256k1KeyPair, typename HASHER = SHA256Hasher>
+class TransactionUnconfirmedPool
+{
+  using transaction = Transaction<KEY_PAIR, HASHER>;
+  using transaction_list = TransactionList<KEY_PAIR, HASHER>;
+
+public:
+  // XXX Source file.
+  void update(transaction const &t)
+  {
+    auto [valid, error] = t.valid();
+
+    if (valid)
+      throw std::runtime_error(
+        fmt::format("attempted to add invalid transaction to pool: {}", error));
+
+    for (auto const &t_ : m_unconfirmed) {
+      for (auto const &txi : t.inputs()) {
+        for (auto const &txi_ : t_.inputs()) {
+          if (txi == txi_)
+            throw std::runtime_error(
+              "Attempted to add invalid transaction to pool: duplicate inputs");
+        }
+      }
+    }
+
+    m_unconfirmed.push_back(t);
+  }
+
+  std::list<transaction> m_unconfirmed;
 };
 
 } // end namespace bc
