@@ -237,7 +237,7 @@ public:
   {
     auto [valid, error] = t.valid();
 
-    if (valid)
+    if (!valid)
       throw std::runtime_error(
         fmt::format("attempted to add invalid transaction to pool: {}", error));
 
