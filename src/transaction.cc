@@ -99,9 +99,11 @@ Transaction<KEY_PAIR, HASHER>::to_json() const
 
   j["hash"] = m_hash.to_string();
 
+  j["inputs"] = json::array();
   for (auto const &txi : m_inputs)
     j["inputs"].push_back(txi.to_json());
 
+  j["outputs"] = json::array();
   for (auto const &txo : m_outputs)
     j["outputs"].push_back(txo.to_json());
 
