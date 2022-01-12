@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "blockchain.h"
+#include "config.h"
 #include "json.h"
 #include "log.h"
 #include "node.h"
@@ -130,16 +131,38 @@ std::pair<HTTPServer::status, json> Node::handle_blocks_post(json const &data)
   m_log.info("Running 'POST /blocks' handler");
 
   try {
-    auto t { block::data_type::from_json(data) };
-
 #ifdef TRANSACTIONS
-    auto update_unspent_outputs { m_transaction_unspent_outputs.update(t) };
-#endif // TRANSACTIONS
 
-    m_blockchain.construct_next_block(t);
+    if (m_transaction_unconfirmed_pool.empty()) {
+      std::string err {
+        "Failed 'POST /blocks' request: no outstanding transactions available" };
 
-#ifdef TRANSACTIONS
-    update_unspent_outputs.doit();
+      m_log.error(err);
+
+      throw HTTPError { HTTPServer::status::bad_request, err };
+    }
+
+    std::vector<transaction> ts_;
+
+    for (std::size_t i { 0 }; i < config().transaction_num_per_block; ++i) {
+      if (m_transaction_unconfirmed_pool.empty())
+        break;
+
+      ts_.push_back(m_transaction_unconfirmed_pool.next());
+    }
+
+    transaction_list ts { ts_.begin(), ts_.end() };
+
+    m_blockchain.construct_next_block(ts);
+
+    m_transaction_unspent_outputs.update(ts);
+
+#else
+
+    auto d { block::data_type::from_json(data) };
+
+    m_blockchain.construct_next_block(d);
+
 #endif // TRANSACTIONS
 
   } catch (std::exception const &e) {
@@ -209,6 +232,8 @@ std::pair<HTTPServer::status, json> Node::handle_transactions_unconfirmed_post(j
 
   try {
     auto t { transaction::from_json(data) };
+
+    t.update_unspent_outputs(m_transaction_unspent_outputs.get());
 
     m_transaction_unconfirmed_pool.update(std::move(t));
 
@@ -283,10 +308,6 @@ json Node::handle_receive_latest_block(json const &data)
   try {
     b = std::make_unique<block>(block::from_json(data["block"]));
 
-#ifdef TRANSACTIONS
-    auto update_unspent_outputs { m_transaction_unspent_outputs.update(b->data()) };
-#endif // TRANSACTIONS
-
     auto [b_valid, b_error] = b->valid();
 
     if (!b_valid) {
@@ -333,16 +354,14 @@ json Node::handle_receive_latest_block(json const &data)
 
         m_blockchain.append_next_block(std::move(*b));
 
-#ifdef TRANSACTIONS
-        update_unspent_outputs.doit();
-#endif // TRANSACTIONS
-
       } else {
         m_log.info("Ignoring block (not a valid successor)");
+        return {};
       }
 
     } else {
       m_log.info("Ignoring block (not a successor)");
+      return {};
     }
 
   } catch (std::exception const &e) {
@@ -354,6 +373,9 @@ json Node::handle_receive_latest_block(json const &data)
     throw WebSocketError(err);
   }
 
+#ifdef TRANSACTIONS
+  m_transaction_unspent_outputs.update(b->data());
+#endif // TRANSACTIONS
 
   return {};
 }

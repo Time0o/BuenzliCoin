@@ -12,7 +12,6 @@
 #include "crypto/keypair.h"
 #include "format.h"
 #include "json.h"
-#include "undo_helper.h"
 
 namespace bc
 {
@@ -134,6 +133,11 @@ class TransactionList
   using transaction = Transaction<KEY_PAIR, HASHER>;
 
 public:
+  template<typename IT>
+  TransactionList(IT start, IT end)
+  : m_transactions { start, end }
+  {}
+
   std::vector<transaction> &transactions()
   { return m_transactions; }
 
@@ -146,10 +150,6 @@ public:
   static TransactionList from_json(json const &j);
 
 private:
-  TransactionList(std::vector<transaction> ts)
-  : m_transactions { std::move(ts) }
-  {}
-
   std::vector<transaction> m_transactions;
 };
 
@@ -160,17 +160,14 @@ class TransactionUnspentOutputs
   using transaction_list = TransactionList<KEY_PAIR, HASHER>;
 
 public:
+  std::list<typename transaction::unspent_output> const &get() const
+  { return m_unspent_outputs; }
+
   // XXX Source file
-  UndoHelper update(transaction_list &ts)
+  void update(transaction_list &ts)
   {
-    m_unspent_outputs_last = m_unspent_outputs;
-
-    UndoHelper helper([this]{ m_unspent_outputs = m_unspent_outputs_last; });
-
     for (auto &t : ts.transactions())
       update(t);
-
-    return std::move(helper);
   }
 
   // XXX Source file
@@ -187,8 +184,6 @@ private:
   // XXX Source file.
   void update(transaction &t)
   {
-    t.update_unspent_outputs(m_unspent_outputs);
-
     auto const &hash { t.hash() };
     auto const &inputs { t.inputs() };
     auto const &outputs { t.outputs() };
@@ -207,12 +202,12 @@ private:
     }
   }
 
-  std::list<typename transaction::unspent_output> m_unspent_outputs, m_unspent_outputs_last;
+  std::list<typename transaction::unspent_output> m_unspent_outputs;
 };
 
 // TODO 1: Add POST endpoint that just adds to pool [x]
 // TODO 2: Return pool via GET endpoint [x]
-// TODO 3: Construct new blocks from pool
+// TODO 3: Construct new blocks from pool [x]
 // TODO 4: Propagate pool between nodes
 // TODO 5: Update pool on every new block
 template<typename KEY_PAIR = ECSecp256k1KeyPair, typename HASHER = SHA256Hasher>
@@ -222,7 +217,22 @@ class TransactionUnconfirmedPool
   using transaction_list = TransactionList<KEY_PAIR, HASHER>;
 
 public:
+  std::list<transaction> const &get()
+  { return m_transactions; }
+
   // XXX Source file.
+  bool empty() const
+  { return m_transactions.empty(); }
+
+  transaction next()
+  {
+    auto t { m_transactions.front() };
+
+    m_transactions.pop_front();
+
+    return t;
+  }
+
   void update(transaction const &t)
   {
     auto [valid, error] = t.valid();
@@ -231,7 +241,7 @@ public:
       throw std::runtime_error(
         fmt::format("attempted to add invalid transaction to pool: {}", error));
 
-    for (auto const &t_ : m_unconfirmed) {
+    for (auto const &t_ : m_transactions) {
       for (auto const &txi : t.inputs()) {
         for (auto const &txi_ : t_.inputs()) {
           if (txi == txi_)
@@ -241,20 +251,20 @@ public:
       }
     }
 
-    m_unconfirmed.push_back(t);
+    m_transactions.push_back(t);
   }
 
   // XXX Source file
   json to_json() const
   {
     json j = json::array();
-    for (auto const &t : m_unconfirmed)
+    for (auto const &t : m_transactions)
       j.push_back(t.to_json());
 
     return j;
   }
 
-  std::list<transaction> m_unconfirmed;
+  std::list<transaction> m_transactions;
 };
 
 } // end namespace bc

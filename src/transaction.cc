@@ -281,7 +281,7 @@ TransactionList<KEY_PAIR, HASHER>::from_json(json const &j)
   for (auto const &j_ : j)
     ts.emplace_back(transaction::from_json(j_));
 
-  return TransactionList { ts };
+  return TransactionList { ts.begin(), ts.end() };
 }
 
 template TransactionList<> TransactionList<>::from_json(json const &data);
