@@ -211,7 +211,7 @@ private:
 };
 
 // TODO 1: Add POST endpoint that just adds to pool [x]
-// TODO 2: Return pool via GET endpoint
+// TODO 2: Return pool via GET endpoint [x]
 // TODO 3: Construct new blocks from pool
 // TODO 4: Propagate pool between nodes
 // TODO 5: Update pool on every new block
@@ -242,6 +242,16 @@ public:
     }
 
     m_unconfirmed.push_back(t);
+  }
+
+  // XXX Source file
+  json to_json() const
+  {
+    json j = json::array();
+    for (auto const &t : m_unconfirmed)
+      j.push_back(t.to_json());
+
+    return j;
   }
 
   std::list<transaction> m_unconfirmed;

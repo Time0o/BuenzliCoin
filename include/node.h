@@ -39,6 +39,7 @@ private:
   std::pair<HTTPServer::status, json> handle_peers_get() const;
   std::pair<HTTPServer::status, json> handle_peers_post(json const &data);
 #ifdef TRANSACTIONS
+  std::pair<HTTPServer::status, json> handle_transactions_unconfirmed_get();
   std::pair<HTTPServer::status, json> handle_transactions_unconfirmed_post(json const &data);
   std::pair<HTTPServer::status, json> handle_transactions_unspent_get() const;
 #endif // TRANSACTIONS

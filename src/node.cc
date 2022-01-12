@@ -100,6 +100,11 @@ void Node::http_setup()
 
 #ifdef TRANSACTIONS
   m_http_server.support("/transactions/unconfirmed",
+                        HTTPServer::method::get,
+                        [this](json const &)
+                        { return handle_transactions_unconfirmed_get(); });
+
+  m_http_server.support("/transactions/unconfirmed",
                         HTTPServer::method::post,
                         [this](json const &data)
                         { return handle_transactions_unconfirmed_post(data); });
@@ -188,6 +193,15 @@ std::pair<HTTPServer::status, json> Node::handle_peers_post(json const &data)
 }
 
 #ifdef TRANSACTIONS
+
+std::pair<HTTPServer::status, json> Node::handle_transactions_unconfirmed_get()
+{
+  m_log.info("Running 'GET /transactions/unconfirmed' handler");
+
+  json answer = m_transaction_unconfirmed_pool.to_json();
+
+  return { HTTPServer::status::ok, answer };
+}
 
 std::pair<HTTPServer::status, json> Node::handle_transactions_unconfirmed_post(json const &data)
 {
