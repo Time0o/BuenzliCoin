@@ -50,6 +50,18 @@ class Transaction
     std::size_t output_index; // Index of TxO in transaction.
     TxO output;
 
+    bool operator==(UTxO const &other) const
+    {
+      return output_hash == other.output_hash &&
+             output_index == other.output_index;
+    }
+
+    bool operator==(TxI const &other) const
+    {
+      return output_hash == other.output_hash &&
+             output_index == other.output_index;
+    }
+
     json to_json() const;
   };
 
@@ -97,6 +109,21 @@ public:
     }
   }
 
+  static Transaction reward(std::string const &reward_address, std::size_t index)
+  {
+    Transaction t {
+      Type::REWARD,
+      index,
+      {},
+      {},
+      { TxO { config().transaction_reward_amount, reward_address } }
+    };
+
+    t.m_hash = t.determine_hash();
+
+    return t;
+  }
+
   json to_json() const;
   static Transaction from_json(json const &j);
 
@@ -138,10 +165,7 @@ public:
   : m_transactions { start, end }
   {}
 
-  std::vector<transaction> &transactions()
-  { return m_transactions; }
-
-  std::vector<transaction> const &transactions() const
+  std::vector<transaction> const &get() const
   { return m_transactions; }
 
   std::pair<bool, std::string> valid(std::size_t index) const;
@@ -163,26 +187,8 @@ public:
   std::list<typename transaction::unspent_output> const &get() const
   { return m_unspent_outputs; }
 
-  // XXX Source file
-  void update(transaction_list &ts)
-  {
-    for (auto &t : ts.transactions())
-      update(t);
-  }
-
-  // XXX Source file
-  json to_json() const
-  {
-    json j = json::array();
-    for (auto const &utxo : m_unspent_outputs)
-      j.push_back(utxo.to_json());
-
-    return j;
-  }
-
-private:
   // XXX Source file.
-  void update(transaction &t)
+  void update(transaction const &t)
   {
     auto const &hash { t.hash() };
     auto const &inputs { t.inputs() };
@@ -202,6 +208,17 @@ private:
     }
   }
 
+  // XXX Source file
+  json to_json() const
+  {
+    json j = json::array();
+    for (auto const &utxo : m_unspent_outputs)
+      j.push_back(utxo.to_json());
+
+    return j;
+  }
+
+private:
   std::list<typename transaction::unspent_output> m_unspent_outputs;
 };
 
@@ -209,7 +226,7 @@ private:
 // TODO 2: Return pool via GET endpoint [x]
 // TODO 3: Construct new blocks from pool [x]
 // TODO 4: Propagate pool between nodes
-// TODO 5: Update pool on every new block
+// TODO 5: Update pool on every new block [x]
 template<typename KEY_PAIR = ECSecp256k1KeyPair, typename HASHER = SHA256Hasher>
 class TransactionUnconfirmedPool
 {
@@ -233,7 +250,7 @@ public:
     return t;
   }
 
-  void update(transaction const &t)
+  void add(transaction const &t)
   {
     auto [valid, error] = t.valid();
 
@@ -252,6 +269,32 @@ public:
     }
 
     m_transactions.push_back(t);
+  }
+
+  void remove(transaction const &t)
+  {
+    for (auto it { m_transactions.begin() }; it != m_transactions.end(); ++it) {
+      if (it->hash() == t.hash())
+        it = m_transactions.erase(it);
+    }
+  }
+
+  void prune(std::list<typename transaction::unspent_output> const &unspent_outputs)
+  {
+    for (auto it { m_transactions.begin() }; it != m_transactions.end(); ++it) {
+      for (auto const &txi : it->inputs()) {
+        bool txi_valid { false };
+        for (auto const &utxo : unspent_outputs) {
+          if (utxo == txi) {
+            txi_valid = true;
+            break;
+          }
+        }
+
+        if (!txi_valid)
+          it = m_transactions.erase(it);
+      }
+    }
   }
 
   // XXX Source file

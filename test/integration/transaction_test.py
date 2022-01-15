@@ -24,31 +24,30 @@ class TransactionTest(TestCase):
         cls._reward_amount = config['transaction']['reward_amount']
 
     def test_perform_transactions(self):
+        self.maxDiff = None
+
         with run_nodes(num_nodes=1, config=self.CONFIG, with_transactions=True) as node:
+            # Mine initial block
+            node.add_block(data=EC_PUBLIC_KEY1)
+
+            utxos = node.list_unspent_transactions()
+            self.assertEqual(len(utxos), 1)
+            self.assertDictEqual(
+                utxos[0]['output'],
+                {
+                    'amount': self._reward_amount,
+                    'address': EC_PUBLIC_KEY1
+                })
+
             tx1 = self._create_transaction(
                 {
-                    'type': 'reward',
-                    'index': 0,
-                    'hash': None,
-                    'inputs': [],
-                    'outputs': [
-                        {
-                            'amount': self._reward_amount,
-                            'address': EC_PUBLIC_KEY1
-                        }
-                    ]
-                },
-                key=EC_PRIVATE_KEY1)
-
-            tx2 = self._create_transaction(
-                {
                     'type': 'standard',
-                    'index': 0,
+                    'index': 1,
                     'hash': None,
                     'inputs': [
                         {
-                            'output_hash': tx1['hash'],
-                            'output_index': 0,
+                            'output_hash': utxos[0]['output_hash'],
+                            'output_index': utxos[0]['output_index'],
                             'signature': None
                         }
                     ],
@@ -65,32 +64,35 @@ class TransactionTest(TestCase):
                 },
                 key=EC_PRIVATE_KEY1)
 
-            node.add_block([tx1, tx2])
+
+            # Add first transaction
+            node.add_transaction(tx1)
+
+            unconfirmed = node.list_unconfirmed_transactions()
+            self.assertEqual(len(unconfirmed), 1)
+            self.assertDictEqual(unconfirmed[0], tx1)
+
+            node.add_block(EC_PUBLIC_KEY2)
 
             utxos = node.list_unspent_transactions()
-
-            self.assertEqual(len(utxos), 2)
-
+            self.assertEqual(len(utxos), 3)
             self.assertDictEqual(
-                utxos[0],
+                utxos[0]['output'],
                 {
-                    'output_hash': tx2['hash'],
-                    'output_index': 0,
-                    'output': {
-                        'amount': self._reward_amount // 2,
-                        'address': EC_PUBLIC_KEY1
-                    }
+                    'amount': self._reward_amount,
+                    'address': EC_PUBLIC_KEY2
                 })
-
             self.assertDictEqual(
-                utxos[1],
+                utxos[1]['output'],
                 {
-                    'output_hash': tx2['hash'],
-                    'output_index': 1,
-                    'output': {
-                        'amount': self._reward_amount // 2,
-                        'address': EC_PUBLIC_KEY2
-                    }
+                    'amount': self._reward_amount // 2,
+                    'address': EC_PUBLIC_KEY1
+                })
+            self.assertDictEqual(
+                utxos[2]['output'],
+                {
+                    'amount': self._reward_amount // 2,
+                    'address': EC_PUBLIC_KEY2
                 })
 
     @classmethod
@@ -121,9 +123,6 @@ class TransactionTest(TestCase):
         h = cls._hash(content)
 
         t['hash'] = h
-
-        for txi in t['inputs']:
-            txi['transaction_hash'] = h
 
     @classmethod
     def _sign_transaction(cls, t, key):

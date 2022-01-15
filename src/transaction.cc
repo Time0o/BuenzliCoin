@@ -237,7 +237,7 @@ template<typename KEY_PAIR, typename HASHER>
 std::pair<bool, std::string>
 TransactionList<KEY_PAIR, HASHER>::valid(std::size_t index) const
 {
-  if (m_transactions.size() > config().transaction_num_per_block)
+  if (m_transactions.size() > config().transaction_num_per_block + 1)
     return { false, "invalid number of transactions" };
 
   for (std::size_t i { 0 }; i < m_transactions.size(); ++i) {
@@ -247,7 +247,7 @@ TransactionList<KEY_PAIR, HASHER>::valid(std::size_t index) const
       return { false, fmt::format("transaction {}: invalid type", i) };
 
     if (t.index() != index)
-      return { false, fmt::format("transaction {}: invalid index", i) };
+      return { false, fmt::format("transaction {}: invalid index {}", i) };
 
     auto [valid, error] = t.valid();
 

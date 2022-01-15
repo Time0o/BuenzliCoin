@@ -100,15 +100,15 @@ void Node::http_setup()
                         { return handle_peers_post(data); });
 
 #ifdef TRANSACTIONS
+  m_http_server.support("/transactions",
+                        HTTPServer::method::post,
+                        [this](json const &data)
+                        { return handle_transactions_post(data); });
+
   m_http_server.support("/transactions/unconfirmed",
                         HTTPServer::method::get,
                         [this](json const &)
                         { return handle_transactions_unconfirmed_get(); });
-
-  m_http_server.support("/transactions/unconfirmed",
-                        HTTPServer::method::post,
-                        [this](json const &data)
-                        { return handle_transactions_unconfirmed_post(data); });
 
   m_http_server.support("/transactions/unspent",
                         HTTPServer::method::get,
@@ -133,16 +133,11 @@ std::pair<HTTPServer::status, json> Node::handle_blocks_post(json const &data)
   try {
 #ifdef TRANSACTIONS
 
-    if (m_transaction_unconfirmed_pool.empty()) {
-      std::string err {
-        "Failed 'POST /blocks' request: no outstanding transactions available" };
-
-      m_log.error(err);
-
-      throw HTTPError { HTTPServer::status::bad_request, err };
-    }
+    auto reward_address { data.get<std::string>() };
 
     std::vector<transaction> ts_;
+
+    ts_.push_back(transaction::reward(reward_address, m_blockchain.length()));
 
     for (std::size_t i { 0 }; i < config().transaction_num_per_block; ++i) {
       if (m_transaction_unconfirmed_pool.empty())
@@ -155,7 +150,10 @@ std::pair<HTTPServer::status, json> Node::handle_blocks_post(json const &data)
 
     m_blockchain.construct_next_block(ts);
 
-    m_transaction_unspent_outputs.update(ts);
+    for (auto const &t : ts.get())
+      m_transaction_unspent_outputs.update(t);
+
+    m_transaction_unconfirmed_pool.prune(m_transaction_unspent_outputs.get());
 
 #else
 
@@ -217,25 +215,16 @@ std::pair<HTTPServer::status, json> Node::handle_peers_post(json const &data)
 
 #ifdef TRANSACTIONS
 
-std::pair<HTTPServer::status, json> Node::handle_transactions_unconfirmed_get()
+std::pair<HTTPServer::status, json> Node::handle_transactions_post(json const &data)
 {
-  m_log.info("Running 'GET /transactions/unconfirmed' handler");
-
-  json answer = m_transaction_unconfirmed_pool.to_json();
-
-  return { HTTPServer::status::ok, answer };
-}
-
-std::pair<HTTPServer::status, json> Node::handle_transactions_unconfirmed_post(json const &data)
-{
-  m_log.info("Running 'POST /transactions/unconfirmed' handler");
+  m_log.info("Running 'POST /transactions' handler");
 
   try {
     auto t { transaction::from_json(data) };
 
     t.update_unspent_outputs(m_transaction_unspent_outputs.get());
 
-    m_transaction_unconfirmed_pool.update(std::move(t));
+    m_transaction_unconfirmed_pool.add(std::move(t));
 
   } catch (std::exception const &e) {
     std::string err {
@@ -247,6 +236,15 @@ std::pair<HTTPServer::status, json> Node::handle_transactions_unconfirmed_post(j
   }
 
   return { HTTPServer::status::ok, {} };
+}
+
+std::pair<HTTPServer::status, json> Node::handle_transactions_unconfirmed_get()
+{
+  m_log.info("Running 'GET /transactions/unconfirmed' handler");
+
+  json answer = m_transaction_unconfirmed_pool.to_json();
+
+  return { HTTPServer::status::ok, answer };
 }
 
 std::pair<HTTPServer::status, json> Node::handle_transactions_unspent_get() const
@@ -374,7 +372,16 @@ json Node::handle_receive_latest_block(json const &data)
   }
 
 #ifdef TRANSACTIONS
-  m_transaction_unspent_outputs.update(b->data());
+
+  auto const &ts { b->data() };
+
+  for (auto const &t : ts.get()) {
+    m_transaction_unspent_outputs.update(t);
+    m_transaction_unconfirmed_pool.remove(t);
+  }
+
+  m_transaction_unconfirmed_pool.prune(m_transaction_unspent_outputs.get());
+
 #endif // TRANSACTIONS
 
   return {};

@@ -63,7 +63,7 @@ class Node:
 
         self._process.wait()
 
-    def add_block(self, data):
+    def add_block(self, data=None):
         self._api_call('blocks', 'post', data=data)
 
     def list_blocks(self):
@@ -79,6 +79,12 @@ class Node:
 
     def list_peers(self):
         return self._api_call('peers', 'get')
+
+    def add_transaction(self, transaction):
+        return self._api_call('transactions', 'post', data=transaction)
+
+    def list_unconfirmed_transactions(self):
+        return self._api_call('transactions/unconfirmed', 'get')
 
     def list_unspent_transactions(self):
         return self._api_call('transactions/unspent', 'get')
