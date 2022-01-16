@@ -43,7 +43,7 @@ class Node:
         elif self._with_transactions:
             node = os.getenv('NODE_TRANS')
         else:
-            node = os.getenv('NODE')
+            node = os.getenv('NODE_NAIVE')
 
         args = [
             node,
