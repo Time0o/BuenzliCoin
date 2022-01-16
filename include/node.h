@@ -20,6 +20,17 @@ namespace bc
 
 class Node
 {
+#ifdef TRANSACTIONS
+  using transaction = Transaction<>;
+  using transaction_list = TransactionList<>;
+
+  using block = Block<transaction_list>;
+  using blockchain = Blockchain<transaction_list>;
+#else
+  using block = Block<Text>;
+  using blockchain = Blockchain<Text>;
+#endif // TRANSACTION
+
 public:
   Node(std::string const &name,
        std::string const &websocket_addr,
@@ -48,10 +59,16 @@ private:
   json handle_request_all_blocks(json const &data) const;
   json handle_receive_latest_block(json const &data);
   json handle_receive_all_blocks(json const &data);
+#ifdef TRANSACTIONS
+  json handle_receive_transaction(json const &data);
+#endif // TRANSACTIONS
 
   void broadcast_latest_block();
   void request_latest_block(std::size_t peer_id);
   void request_all_blocks(std::size_t peer_id);
+#ifdef TRANSACTIONS
+  void broadcast_transaction(transaction const &t);
+#endif // TRANSACTIONS
 
   // XXX Use thread pool and join all threads before stopping.
   template<typename FUNC, typename ...ARGS>
@@ -67,24 +84,12 @@ private:
 
   log::Logger m_log;
 
+  blockchain m_blockchain;
+
 #ifdef TRANSACTIONS
-  using transaction = Transaction<>;
-  using transaction_list = TransactionList<>;
-
-  using block = Block<transaction_list>;
-  using blockchain = Blockchain<transaction_list>;
-
   TransactionUnspentOutputs<> m_transaction_unspent_outputs;
   TransactionUnconfirmedPool<> m_transaction_unconfirmed_pool;
-
-#else
-
-  using block = Block<Text>;
-  using blockchain = Blockchain<Text>;
-
-#endif // TRANSACTION
-
-  blockchain m_blockchain;
+#endif // TRANSACTIONS
 
   WebSocketServer m_websocket_server;
   WebSocketPeers m_websocket_peers;

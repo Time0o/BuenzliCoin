@@ -225,7 +225,7 @@ private:
 // TODO 1: Add POST endpoint that just adds to pool [x]
 // TODO 2: Return pool via GET endpoint [x]
 // TODO 3: Construct new blocks from pool [x]
-// TODO 4: Propagate pool between nodes
+// TODO 4: Propagate pool between nodes [x]
 // TODO 5: Update pool on every new block [x]
 template<typename KEY_PAIR = ECSecp256k1KeyPair, typename HASHER = SHA256Hasher>
 class TransactionUnconfirmedPool

@@ -75,6 +75,12 @@ void Node::websocket_setup()
   m_websocket_server.support("/receive-all-blocks",
                              [this](json const &data)
                              { return handle_receive_all_blocks(data); });
+
+#ifdef TRANSACTIONS
+  m_websocket_server.support("/receive-transaction",
+                             [this](json const &data)
+                             { return handle_receive_transaction(data); });
+#endif // TRANSACTIONS
 }
 
 void Node::http_setup()
@@ -225,6 +231,8 @@ std::pair<HTTPServer::status, json> Node::handle_transactions_post(json const &d
     t.update_unspent_outputs(m_transaction_unspent_outputs.get());
 
     m_transaction_unconfirmed_pool.add(std::move(t));
+
+    broadcast_transaction(t);
 
   } catch (std::exception const &e) {
     std::string err {
@@ -426,6 +434,39 @@ json Node::handle_receive_all_blocks(json const &data)
   return {};
 }
 
+#ifdef TRANSACTIONS
+
+json Node::handle_receive_transaction(json const &data)
+{
+  m_log.info("Running 'receive_transaction' handler");
+
+  std::unique_ptr<transaction> t;
+
+  try {
+    t = std::make_unique<transaction>(transaction::from_json(data));
+
+    m_log.debug("Received transaction: '{}'", t->to_json().dump());
+
+  } catch (std::exception const &e) {
+    std::string err {
+      "Malformed 'receive_transaction' request: '" + data.dump() + "': " + e.what() };
+
+    m_log.error(err);
+
+    throw WebSocketError(err);
+  }
+
+  try {
+    m_transaction_unconfirmed_pool.add(*t);
+  } catch (std::exception const &e) {
+    m_log.error("Failed to add transaction to pool: {}", e.what());
+  }
+
+  return {};
+}
+
+#endif // TRANSACTIONS
+
 void Node::broadcast_latest_block()
 {
   m_log.info("Broadcasting latest block");
@@ -494,5 +535,29 @@ void Node::request_all_blocks(std::size_t peer_id)
       }
     });
 }
+
+#ifdef TRANSACTIONS
+
+void Node::broadcast_transaction(transaction const &t)
+{
+  m_log.info("Broadcasting transaction");
+
+  json request;
+  request["target"] = "/receive-transaction";
+  request["data"]["transaction"] = t.to_json();
+
+  for (std::size_t peer_id { 1 }; peer_id <= m_websocket_peers.size(); ++peer_id) {
+    m_websocket_peers.send(
+      peer_id,
+      request,
+      [this](bool success, std::string const &answer)
+      {
+        if (!success)
+          m_log.error("Broadcasting transaction failed: {}", answer);
+      });
+  }
+}
+
+#endif // TRANSACTIONS
 
 } // end namespace bc
