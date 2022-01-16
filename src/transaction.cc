@@ -81,6 +81,27 @@ Transaction<KEY_PAIR, HASHER>::UTxO::to_json() const
 template json Transaction<>::UTxO::to_json() const;
 
 template<typename KEY_PAIR, typename HASHER>
+Transaction<KEY_PAIR, HASHER>
+Transaction<KEY_PAIR, HASHER>::reward(std::string const &reward_address,
+                                      std::size_t index)
+{
+  Transaction t {
+    Type::REWARD,
+    index,
+    {},
+    {},
+    { TxO { config().transaction_reward_amount, reward_address } }
+  };
+
+  t.m_hash = t.determine_hash();
+
+  return t;
+}
+
+template Transaction<> Transaction<>::reward(std::string const &reward_address,
+                                             std::size_t index);
+
+template<typename KEY_PAIR, typename HASHER>
 json
 Transaction<KEY_PAIR, HASHER>::to_json() const
 {
@@ -287,5 +308,129 @@ TransactionList<KEY_PAIR, HASHER>::from_json(json const &j)
 }
 
 template TransactionList<> TransactionList<>::from_json(json const &data);
+
+template<typename KEY_PAIR, typename HASHER>
+void
+TransactionUnspentOutputs<KEY_PAIR, HASHER>::update(transaction const &t)
+{
+  auto const &hash { t.hash() };
+  auto const &inputs { t.inputs() };
+  auto const &outputs { t.outputs() };
+
+  for (std::size_t i { 0 }; i < outputs.size(); ++i)
+    m_unspent_outputs.emplace_back(hash, i, outputs[i]);
+
+  for (auto const &txi : inputs) {
+    for (auto it { m_unspent_outputs.begin() }; it != m_unspent_outputs.end(); ++it) {
+      if (it->output_hash == txi.output_hash &&
+          it->output_index == txi.output_index) {
+
+        it = m_unspent_outputs.erase(it);
+      }
+    }
+  }
+}
+
+template void TransactionUnspentOutputs<>::update(transaction const &t);
+
+template<typename KEY_PAIR, typename HASHER>
+json
+TransactionUnspentOutputs<KEY_PAIR, HASHER>::to_json() const
+{
+  json j = json::array();
+  for (auto const &utxo : m_unspent_outputs)
+    j.push_back(utxo.to_json());
+
+  return j;
+}
+
+template json TransactionUnspentOutputs<>::to_json() const;
+
+template<typename KEY_PAIR, typename HASHER>
+Transaction<KEY_PAIR, HASHER>
+TransactionUnconfirmedPool<KEY_PAIR, HASHER>::next()
+{
+  auto t { m_transactions.front() };
+
+  m_transactions.pop_front();
+
+  return t;
+}
+
+template Transaction<> TransactionUnconfirmedPool<>::next();
+
+template<typename KEY_PAIR, typename HASHER>
+void
+TransactionUnconfirmedPool<KEY_PAIR, HASHER>::add(transaction const &t)
+{
+  auto [valid, error] = t.valid();
+
+  if (!valid)
+    throw std::runtime_error(
+      fmt::format("attempted to add invalid transaction to pool: {}", error));
+
+  for (auto const &t_ : m_transactions) {
+    for (auto const &txi : t.inputs()) {
+      for (auto const &txi_ : t_.inputs()) {
+        if (txi == txi_)
+          throw std::runtime_error(
+            "Attempted to add invalid transaction to pool: duplicate inputs");
+      }
+    }
+  }
+
+  m_transactions.push_back(t);
+}
+
+template void TransactionUnconfirmedPool<>::add(transaction const &t);
+
+template<typename KEY_PAIR, typename HASHER>
+void
+TransactionUnconfirmedPool<KEY_PAIR, HASHER>::remove(transaction const &t)
+{
+  for (auto it { m_transactions.begin() }; it != m_transactions.end(); ++it) {
+    if (it->hash() == t.hash())
+      it = m_transactions.erase(it);
+  }
+}
+
+template void TransactionUnconfirmedPool<>::remove(transaction const &t);
+
+template<typename KEY_PAIR, typename HASHER>
+void
+TransactionUnconfirmedPool<KEY_PAIR, HASHER>::prune(
+  std::list<typename transaction::unspent_output> const &unspent_outputs)
+{
+  for (auto it { m_transactions.begin() }; it != m_transactions.end(); ++it) {
+    for (auto const &txi : it->inputs()) {
+      bool txi_valid { false };
+      for (auto const &utxo : unspent_outputs) {
+        if (utxo == txi) {
+          txi_valid = true;
+          break;
+        }
+      }
+
+      if (!txi_valid)
+        it = m_transactions.erase(it);
+    }
+  }
+}
+
+template void TransactionUnconfirmedPool<>::prune(
+  std::list<typename transaction::unspent_output> const &unspent_outputs);
+
+template<typename KEY_PAIR, typename HASHER>
+json
+TransactionUnconfirmedPool<KEY_PAIR, HASHER>::to_json() const
+{
+  json j = json::array();
+  for (auto const &t : m_transactions)
+    j.push_back(t.to_json());
+
+  return j;
+}
+
+template json TransactionUnconfirmedPool<>::to_json() const;
 
 } // end namespace bc

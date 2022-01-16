@@ -109,20 +109,7 @@ public:
     }
   }
 
-  static Transaction reward(std::string const &reward_address, std::size_t index)
-  {
-    Transaction t {
-      Type::REWARD,
-      index,
-      {},
-      {},
-      { TxO { config().transaction_reward_amount, reward_address } }
-    };
-
-    t.m_hash = t.determine_hash();
-
-    return t;
-  }
+  static Transaction reward(std::string const &reward_address, std::size_t index);
 
   json to_json() const;
   static Transaction from_json(json const &j);
@@ -187,46 +174,14 @@ public:
   std::list<typename transaction::unspent_output> const &get() const
   { return m_unspent_outputs; }
 
-  // XXX Source file.
-  void update(transaction const &t)
-  {
-    auto const &hash { t.hash() };
-    auto const &inputs { t.inputs() };
-    auto const &outputs { t.outputs() };
+  void update(transaction const &t);
 
-    for (std::size_t i { 0 }; i < outputs.size(); ++i)
-      m_unspent_outputs.emplace_back(hash, i, outputs[i]);
-
-    for (auto const &txi : inputs) {
-      for (auto it { m_unspent_outputs.begin() }; it != m_unspent_outputs.end(); ++it) {
-        if (it->output_hash == txi.output_hash &&
-            it->output_index == txi.output_index) {
-
-          it = m_unspent_outputs.erase(it);
-        }
-      }
-    }
-  }
-
-  // XXX Source file
-  json to_json() const
-  {
-    json j = json::array();
-    for (auto const &utxo : m_unspent_outputs)
-      j.push_back(utxo.to_json());
-
-    return j;
-  }
+  json to_json() const;
 
 private:
   std::list<typename transaction::unspent_output> m_unspent_outputs;
 };
 
-// TODO 1: Add POST endpoint that just adds to pool [x]
-// TODO 2: Return pool via GET endpoint [x]
-// TODO 3: Construct new blocks from pool [x]
-// TODO 4: Propagate pool between nodes [x]
-// TODO 5: Update pool on every new block [x]
 template<typename KEY_PAIR = ECSecp256k1KeyPair, typename HASHER = SHA256Hasher>
 class TransactionUnconfirmedPool
 {
@@ -234,79 +189,23 @@ class TransactionUnconfirmedPool
   using transaction_list = TransactionList<KEY_PAIR, HASHER>;
 
 public:
-  std::list<transaction> const &get()
-  { return m_transactions; }
-
-  // XXX Source file.
   bool empty() const
   { return m_transactions.empty(); }
 
-  transaction next()
-  {
-    auto t { m_transactions.front() };
+  std::list<transaction> const &get()
+  { return m_transactions; }
 
-    m_transactions.pop_front();
+  transaction next();
 
-    return t;
-  }
+  void add(transaction const &t);
 
-  void add(transaction const &t)
-  {
-    auto [valid, error] = t.valid();
+  void remove(transaction const &t);
 
-    if (!valid)
-      throw std::runtime_error(
-        fmt::format("attempted to add invalid transaction to pool: {}", error));
+  void prune(std::list<typename transaction::unspent_output> const &unspent_outputs);
 
-    for (auto const &t_ : m_transactions) {
-      for (auto const &txi : t.inputs()) {
-        for (auto const &txi_ : t_.inputs()) {
-          if (txi == txi_)
-            throw std::runtime_error(
-              "Attempted to add invalid transaction to pool: duplicate inputs");
-        }
-      }
-    }
+  json to_json() const;
 
-    m_transactions.push_back(t);
-  }
-
-  void remove(transaction const &t)
-  {
-    for (auto it { m_transactions.begin() }; it != m_transactions.end(); ++it) {
-      if (it->hash() == t.hash())
-        it = m_transactions.erase(it);
-    }
-  }
-
-  void prune(std::list<typename transaction::unspent_output> const &unspent_outputs)
-  {
-    for (auto it { m_transactions.begin() }; it != m_transactions.end(); ++it) {
-      for (auto const &txi : it->inputs()) {
-        bool txi_valid { false };
-        for (auto const &utxo : unspent_outputs) {
-          if (utxo == txi) {
-            txi_valid = true;
-            break;
-          }
-        }
-
-        if (!txi_valid)
-          it = m_transactions.erase(it);
-      }
-    }
-  }
-
-  // XXX Source file
-  json to_json() const
-  {
-    json j = json::array();
-    for (auto const &t : m_transactions)
-      j.push_back(t.to_json());
-
-    return j;
-  }
-
+private:
   std::list<transaction> m_transactions;
 };
 
