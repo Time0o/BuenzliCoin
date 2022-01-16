@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.svg">
+</p>
+
 # BuenzliCoin - a Proof of Work Blockchain/Cryptocurrency
 
 BuenzliCoin is a simple proof of work based blockchain/cryptocurrency written
