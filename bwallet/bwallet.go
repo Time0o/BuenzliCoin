@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -165,6 +166,29 @@ func createWallet(buenzliDir string, name string) error {
 	return nil
 }
 
+func mineIntoWallet(buenzliDir string, buenzliNode string, name string) error {
+	w, err := findWallet(buenzliDir, name)
+	if err != nil {
+		return err
+	}
+
+	if w == nil {
+		return errors.New(fmt.Sprintf("wallet '%s' does not exist", name))
+	}
+
+	addressJson, _ := json.Marshal(w.Address)
+
+	resp, err := http.Post("http://"+buenzliNode+"/blocks",
+		"application/json",
+		bytes.NewBuffer(addressJson))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	return nil
+}
+
 type transactionOutput struct {
 	Amount  int
 	Address string
@@ -246,13 +270,18 @@ func run() int {
 	createWalletCmdName :=
 		createWalletCmd.String("name", "", "wallet name")
 
+	mineIntoWalletCmd :=
+		flag.NewFlagSet("mine", flag.ExitOnError)
+	mineIntoWalletCmdTo :=
+		mineIntoWalletCmd.String("to", "", "wallet name")
+
 	walletBalanceCmd :=
 		flag.NewFlagSet("balance", flag.ExitOnError)
 	walletBalanceCmdOf :=
 		walletBalanceCmd.String("of", "", "wallet name")
 
 	if len(os.Args) < 2 {
-		return failure(errors.New("expected subcommand (list|create|balance)"))
+		return failure(errors.New("expected subcommand (list|create|mine|balance)"))
 	}
 
 	subcommand := os.Args[1]
@@ -277,8 +306,17 @@ func run() int {
 			return failure(errors.New("-name argument is required"))
 		}
 
-		err := createWallet(buenzliDir, *createWalletCmdName)
-		if err != nil {
+		if err := createWallet(buenzliDir, *createWalletCmdName); err != nil {
+			return failure(err)
+		}
+	case "mine":
+		mineIntoWalletCmd.Parse(subcommandArgs)
+
+		if *mineIntoWalletCmdTo == "" {
+			return failure(errors.New("-to argument is required"))
+		}
+
+		if err := mineIntoWallet(buenzliDir, buenzliNode, *mineIntoWalletCmdTo); err != nil {
 			return failure(err)
 		}
 	case "balance":
