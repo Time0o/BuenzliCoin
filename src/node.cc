@@ -143,6 +143,8 @@ std::pair<HTTPServer::status, json> Node::handle_blocks_post(json const &data)
 
     std::vector<transaction> ts_;
 
+    m_log.info("Assembling block from unconfirmed transaction pool");
+
     ts_.push_back(transaction::reward(reward_address, m_blockchain.length()));
 
     for (std::size_t i { 0 }; i < config().transaction_num_per_block; ++i) {
@@ -154,10 +156,16 @@ std::pair<HTTPServer::status, json> Node::handle_blocks_post(json const &data)
 
     transaction_list ts { ts_.begin(), ts_.end() };
 
+    m_log.info("Constructing block");
+
     m_blockchain.construct_next_block(ts);
+
+    m_log.info("Updating unspent transaction outputs");
 
     for (auto const &t : ts.get())
       m_transaction_unspent_outputs.update(t);
+
+    m_log.info("Updating unconfirmed transaction pool");
 
     m_transaction_unconfirmed_pool.prune(m_transaction_unspent_outputs.get());
 
@@ -168,6 +176,9 @@ std::pair<HTTPServer::status, json> Node::handle_blocks_post(json const &data)
     m_blockchain.construct_next_block(d);
 
 #endif // TRANSACTIONS
+
+    m_log.debug("Constructed next block: '{}'",
+                 m_blockchain.latest_block().to_json().dump());
 
   } catch (std::exception const &e) {
     std::string err {
@@ -228,7 +239,11 @@ std::pair<HTTPServer::status, json> Node::handle_transactions_post(json const &d
   try {
     auto t { transaction::from_json(data) };
 
+    m_log.debug("Linking transaction with unspent transaction outputs");
+
     t.update_unspent_outputs(m_transaction_unspent_outputs.get());
+
+    m_log.info("Adding transaction to unconfirmed transaction pool");
 
     m_transaction_unconfirmed_pool.add(std::move(t));
 
@@ -314,6 +329,17 @@ json Node::handle_receive_latest_block(json const &data)
   try {
     b = std::make_unique<block>(block::from_json(data["block"]));
 
+    m_log.debug("Received block: '{}'", b->to_json().dump());
+
+#ifdef TRANSACTIONS
+    auto &ts { b->data() };
+
+    m_log.debug("Linking transactions with unspent transaction outputs");
+
+    for (auto &t : ts.get())
+      t.update_unspent_outputs(m_transaction_unspent_outputs.get());
+#endif // TRANSACTIONS
+
     auto [b_valid, b_error] = b->valid();
 
     if (!b_valid) {
@@ -323,8 +349,6 @@ json Node::handle_receive_latest_block(json const &data)
 
       throw WebSocketError(err);
     }
-
-    m_log.debug("Received block: '{}'", b->to_json().dump());
 
     if (b->index() > m_blockchain.length()) {
       std::string host;
@@ -358,7 +382,7 @@ json Node::handle_receive_latest_block(json const &data)
 
         m_log.info("Appending next block");
 
-        m_blockchain.append_next_block(std::move(*b));
+        m_blockchain.append_next_block(*b);
 
       } else {
         m_log.info("Ignoring block (not a valid successor)");
@@ -383,10 +407,15 @@ json Node::handle_receive_latest_block(json const &data)
 
   auto const &ts { b->data() };
 
-  for (auto const &t : ts.get()) {
+  m_log.info("Updating unspent transaction outputs");
+
+  for (auto const &t : ts.get())
     m_transaction_unspent_outputs.update(t);
+
+  m_log.info("Updating unconfirmed transaction pool");
+
+  for (auto const &t : ts.get())
     m_transaction_unconfirmed_pool.remove(t);
-  }
 
   m_transaction_unconfirmed_pool.prune(m_transaction_unspent_outputs.get());
 
@@ -445,6 +474,8 @@ json Node::handle_receive_transaction(json const &data)
   try {
     t = std::make_unique<transaction>(transaction::from_json(data));
 
+    t->update_unspent_outputs(m_transaction_unspent_outputs.get());
+
     m_log.debug("Received transaction: '{}'", t->to_json().dump());
 
   } catch (std::exception const &e) {
@@ -456,10 +487,12 @@ json Node::handle_receive_transaction(json const &data)
     throw WebSocketError(err);
   }
 
+  m_log.info("Adding transaction to unconfirmed transaction pool");
+
   try {
     m_transaction_unconfirmed_pool.add(*t);
   } catch (std::exception const &e) {
-    m_log.error("Failed to add transaction to pool: {}", e.what());
+    m_log.error("Failed to add transaction to unconfirmed transaction pool: {}", e.what());
   }
 
   return {};
@@ -544,7 +577,7 @@ void Node::broadcast_transaction(transaction const &t)
 
   json request;
   request["target"] = "/receive-transaction";
-  request["data"]["transaction"] = t.to_json();
+  request["data"] = t.to_json();
 
   for (std::size_t peer_id { 1 }; peer_id <= m_websocket_peers.size(); ++peer_id) {
     m_websocket_peers.send(

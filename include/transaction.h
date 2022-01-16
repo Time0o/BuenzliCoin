@@ -152,6 +152,9 @@ public:
   : m_transactions { start, end }
   {}
 
+  std::vector<transaction> &get()
+  { return m_transactions; }
+
   std::vector<transaction> const &get() const
   { return m_transactions; }
 

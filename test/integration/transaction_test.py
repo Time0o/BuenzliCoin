@@ -26,19 +26,23 @@ class TransactionTest(TestCase):
     def test_perform_transactions(self):
         self.maxDiff = None
 
-        with run_nodes(num_nodes=1, config=self.CONFIG, with_transactions=True) as node:
+        with run_nodes(num_nodes=2, config=self.CONFIG, with_transactions=True) as (node1, node2):
+            node1.add_peer(node2)
+
             # Mine initial block
-            node.add_block(data=EC_PUBLIC_KEY1)
+            node1.add_block(data=EC_PUBLIC_KEY1)
 
-            utxos = node.list_unspent_transactions()
-            self.assertEqual(len(utxos), 1)
-            self.assertDictEqual(
-                utxos[0]['output'],
-                {
-                    'amount': self._reward_amount,
-                    'address': EC_PUBLIC_KEY1
-                })
+            for node in node1, node2:
+                utxos = node.list_unspent_transactions()
+                self.assertEqual(len(utxos), 1)
+                self.assertDictEqual(
+                    utxos[0]['output'],
+                    {
+                        'amount': self._reward_amount,
+                        'address': EC_PUBLIC_KEY1
+                    })
 
+            # Add first transaction
             tx1 = self._create_transaction(
                 {
                     'type': 'standard',
@@ -64,36 +68,40 @@ class TransactionTest(TestCase):
                 },
                 key=EC_PRIVATE_KEY1)
 
+            node1.add_transaction(tx1)
 
-            # Add first transaction
-            node.add_transaction(tx1)
+            for node in node1, node2:
+                unconfirmed = node.list_unconfirmed_transactions()
+                self.assertEqual(len(unconfirmed), 1)
+                self.assertDictEqual(unconfirmed[0], tx1)
 
-            unconfirmed = node.list_unconfirmed_transactions()
-            self.assertEqual(len(unconfirmed), 1)
-            self.assertDictEqual(unconfirmed[0], tx1)
+            node1.add_block(EC_PUBLIC_KEY2)
 
-            node.add_block(EC_PUBLIC_KEY2)
+            for node in node1, node2:
+                utxos = node.list_unspent_transactions()
+                self.assertEqual(len(utxos), 3)
+                self.assertDictEqual(
+                    utxos[0]['output'],
+                    {
+                        'amount': self._reward_amount,
+                        'address': EC_PUBLIC_KEY2
+                    })
+                self.assertDictEqual(
+                    utxos[1]['output'],
+                    {
+                        'amount': self._reward_amount // 2,
+                        'address': EC_PUBLIC_KEY1
+                    })
+                self.assertDictEqual(
+                    utxos[2]['output'],
+                    {
+                        'amount': self._reward_amount // 2,
+                        'address': EC_PUBLIC_KEY2
+                    })
 
-            utxos = node.list_unspent_transactions()
-            self.assertEqual(len(utxos), 3)
-            self.assertDictEqual(
-                utxos[0]['output'],
-                {
-                    'amount': self._reward_amount,
-                    'address': EC_PUBLIC_KEY2
-                })
-            self.assertDictEqual(
-                utxos[1]['output'],
-                {
-                    'amount': self._reward_amount // 2,
-                    'address': EC_PUBLIC_KEY1
-                })
-            self.assertDictEqual(
-                utxos[2]['output'],
-                {
-                    'amount': self._reward_amount // 2,
-                    'address': EC_PUBLIC_KEY2
-                })
+            for node in node1, node2:
+                unconfirmed = node.list_unconfirmed_transactions()
+                self.assertEqual(len(unconfirmed), 0)
 
     @classmethod
     def _create_transaction(cls, t, key):
