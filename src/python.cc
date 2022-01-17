@@ -69,21 +69,24 @@ PYBIND11_MODULE(bc, m)
   py::class_<ECSecp256k1PrivateKey>(m, "ECSecp256k1PrivateKey")
     .def(py::init<std::string_view>())
     .def("sign",
-         [](ECSecp256k1PrivateKey const &key, std::string_view msg)
+         [](ECSecp256k1PrivateKey const &key, std::string const &hash_)
          {
-           return key.sign(msg).to_string();
+           auto hash { ECSecp256k1PublicKey::hash_digest::from_string(hash_) };
+
+           return key.sign(hash).to_string();
          });
 
   py::class_<ECSecp256k1PublicKey>(m, "ECSecp256k1PublicKey")
     .def(py::init<std::string_view>())
     .def("verify",
          [](ECSecp256k1PublicKey const &key,
-            std::string_view msg,
-            std::string const &signature)
+            std::string const &hash_,
+            std::string const &signature_)
          {
-            auto digest { ECSecp256k1PublicKey::digest::from_string(signature) };
+           auto hash { ECSecp256k1PublicKey::hash_digest::from_string(hash_) };
+           auto signature { ECSecp256k1PublicKey::sig_digest::from_string(signature_) };
 
-            return key.verify(msg, digest);
+           return key.verify(hash, signature);
          });
 
   py::class_<SHA256Hasher>(m, "SHA256Hasher")

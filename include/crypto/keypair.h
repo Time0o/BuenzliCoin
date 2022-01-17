@@ -39,11 +39,12 @@ inline std::string build_key(std::string_view key_,
 
 } // end namespace detail
 
-template<typename IMPL, typename TYPE, std::size_t DIGEST_LEN>
+template<typename IMPL, std::size_t HASH_DIGEST_LEN, std::size_t SIG_DIGEST_LEN>
 class PrivateKey
 {
 public:
-  using digest = Digest<DIGEST_LEN>;
+  using hash_digest = Digest<HASH_DIGEST_LEN>;
+  using sig_digest = Digest<SIG_DIGEST_LEN>;
 
 protected:
   PrivateKey(std::string_view key)
@@ -51,21 +52,17 @@ protected:
   {}
 
 public:
-  digest sign(std::string_view msg) const
+  sig_digest sign(hash_digest const &hash) const
   {
     auto key { IMPL::read_key(m_key) };
     if (!key)
       throw std::runtime_error("failed to parse private key");
 
-    EVP_MD_CTX *mdctx { nullptr };
+    EVP_PKEY_CTX *pkey_ctx { nullptr };
     EVP_PKEY *pkey { nullptr };
 
-    digest signature;
-    auto signature_length { signature.length() };
-
-    mdctx = EVP_MD_CTX_new();
-    if (!mdctx)
-      throw std::bad_alloc {};
+    sig_digest sig;
+    auto sig_length { sig.length() };
 
     pkey = EVP_PKEY_new();
     if (!pkey)
@@ -74,27 +71,28 @@ public:
     if (IMPL::assign_key(pkey, key) != 1)
       goto error;
 
-    if (EVP_DigestSignInit(mdctx, nullptr, IMPL::hasher(), nullptr, pkey) != 1)
+    pkey_ctx = EVP_PKEY_CTX_new(pkey, nullptr);
+    if (!pkey_ctx)
+      throw std::bad_alloc {};
+
+    if (EVP_PKEY_sign_init(pkey_ctx) != 1)
       goto error;
 
-    if (EVP_DigestSignUpdate(mdctx, msg.data(), msg.length()) != 1)
+    if (EVP_PKEY_sign(pkey_ctx, sig.data(), &sig_length, hash.data(), hash.length()) != 1)
       goto error;
 
-    if (EVP_DigestSignFinal(mdctx, signature.data(), &signature_length) != 1)
-      goto error;
+    sig.adjust_length(sig_length);
 
-    signature.adjust_length(signature_length);
-
-    EVP_MD_CTX_free(mdctx);
+    EVP_PKEY_CTX_free(pkey_ctx);
     EVP_PKEY_free(pkey);
 
-    return signature;
+    return sig;
 
   error:
     std::string error { ERR_error_string(ERR_get_error(), nullptr) };
 
-    if (mdctx)
-      EVP_MD_CTX_free(mdctx);
+    if (pkey_ctx)
+      EVP_PKEY_CTX_free(pkey_ctx);
 
     if (pkey)
       EVP_PKEY_free(pkey);
@@ -106,11 +104,12 @@ private:
   std::string m_key;
 };
 
-template<typename IMPL, typename TYPE, std::size_t DIGEST_LEN>
+template<typename IMPL, std::size_t HASH_DIGEST_LEN, std::size_t SIG_DIGEST_LEN>
 class PublicKey
 {
 public:
-  using digest = Digest<DIGEST_LEN>;
+  using hash_digest = Digest<HASH_DIGEST_LEN>;
+  using sig_digest = Digest<SIG_DIGEST_LEN>;
 
 protected:
   PublicKey(std::string_view key)
@@ -118,21 +117,17 @@ protected:
   {}
 
 public:
-  bool verify(std::string_view msg, digest const &d) const
+  bool verify(hash_digest const &hash, sig_digest const &sig) const
   {
     auto key { IMPL::read_key(m_key) };
     if (!key)
       throw std::runtime_error("failed to parse public key");
 
-    EVP_MD_CTX *mdctx { nullptr };
+    EVP_PKEY_CTX *pkey_ctx { nullptr };
     EVP_PKEY *pkey { nullptr };
 
     int status;
     bool verified;
-
-    mdctx = EVP_MD_CTX_new();
-    if (!mdctx)
-      throw std::bad_alloc {};
 
     pkey = EVP_PKEY_new();
     if (!pkey)
@@ -141,13 +136,14 @@ public:
     if (IMPL::assign_key(pkey, key) != 1)
       goto error;
 
-    if (EVP_DigestVerifyInit(mdctx, nullptr, IMPL::hasher(), nullptr, pkey) != 1)
+    pkey_ctx = EVP_PKEY_CTX_new(pkey, nullptr);
+    if (!pkey_ctx)
+      throw std::bad_alloc {};
+
+    if (EVP_PKEY_verify_init(pkey_ctx) != 1)
       goto error;
 
-    if (EVP_DigestVerifyUpdate(mdctx, msg.data(), msg.length()) != 1)
-      goto error;
-
-    status = EVP_DigestVerifyFinal(mdctx, d.data(), d.length());
+    status = EVP_PKEY_verify(pkey_ctx, sig.data(), sig.length(), hash.data(), hash.length());
 
     switch (status) {
       case 0:
@@ -160,7 +156,7 @@ public:
         goto error;
     }
 
-    EVP_MD_CTX_free(mdctx);
+    EVP_PKEY_CTX_free(pkey_ctx);
     EVP_PKEY_free(pkey);
 
     return verified;
@@ -168,8 +164,8 @@ public:
   error:
     std::string error { ERR_error_string(ERR_get_error(), nullptr) };
 
-    if (mdctx)
-      EVP_MD_CTX_free(mdctx);
+    if (pkey_ctx)
+      EVP_PKEY_CTX_free(pkey_ctx);
 
     if (pkey)
       EVP_PKEY_free(pkey);
@@ -181,16 +177,17 @@ private:
   std::string m_key;
 };
 
-template<typename PRIVATE_KEY, typename PUBLIC_KEY, std::size_t DIGEST_LEN>
+template<typename PRIVATE_KEY, typename PUBLIC_KEY>
 struct KeyPair
 {
   using private_key = PRIVATE_KEY;
   using public_key = PUBLIC_KEY;
 
-  using digest = Digest<DIGEST_LEN>;
+  using hash_digest = PRIVATE_KEY::hash_digest;
+  using sig_digest = PRIVATE_KEY::sig_digest;
 };
 
-class ECSecp256k1PrivateKey : public PrivateKey<ECSecp256k1PrivateKey, EC_KEY, 72>
+class ECSecp256k1PrivateKey : public PrivateKey<ECSecp256k1PrivateKey, 32, 72>
 {
   friend class PrivateKey;
 
@@ -217,12 +214,9 @@ private:
 
   static int assign_key(EVP_PKEY *parent_key, EC_KEY *key)
   { return EVP_PKEY_assign_EC_KEY(parent_key, key); }
-
-  static EVP_MD const *hasher()
-  { return EVP_sha256(); }
 };
 
-class ECSecp256k1PublicKey : public PublicKey<ECSecp256k1PublicKey, EC_KEY, 72>
+class ECSecp256k1PublicKey : public PublicKey<ECSecp256k1PublicKey, 32, 72>
 {
   friend class PublicKey;
 
@@ -249,11 +243,8 @@ private:
 
   static int assign_key(EVP_PKEY *parent_key, EC_KEY *key)
   { return EVP_PKEY_assign_EC_KEY(parent_key, key); }
-
-  static EVP_MD const *hasher()
-  { return EVP_sha256(); }
 };
 
-using ECSecp256k1KeyPair = KeyPair<ECSecp256k1PrivateKey, ECSecp256k1PublicKey, 72>;
+using ECSecp256k1KeyPair = KeyPair<ECSecp256k1PrivateKey, ECSecp256k1PublicKey>;
 
 } // end namespace bc
