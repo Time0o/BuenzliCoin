@@ -145,10 +145,14 @@ void Node::http_setup()
 void Node::blockchain_setup()
 {
 #ifdef TRANSACTIONS
+    m_transaction_unspent_outputs.clear();
+
     for (auto const &block : m_blockchain.all_blocks()) {
       for (auto const &transaction : block.data().get())
         m_transaction_unspent_outputs.update(transaction);
     }
+
+    m_transaction_unconfirmed_pool.clear();
 #endif // TRANSACTIONS
 }
 
@@ -538,6 +542,8 @@ json Node::handle_receive_all_blocks(json const &data)
     m_log.info("Replacing current blockchain");
 
     m_blockchain = std::move(*bc);
+
+    blockchain_setup();
   }
 
   return {};

@@ -177,6 +177,9 @@ public:
 
   void update(transaction const &t);
 
+  void clear()
+  { m_unspent_outputs.clear(); }
+
   json to_json() const;
 
 private:
@@ -203,6 +206,9 @@ public:
   void remove(transaction const &t);
 
   void prune(std::list<typename transaction::unspent_output> const &unspent_outputs);
+
+  void clear()
+  { m_transactions.clear(); }
 
   json to_json() const;
 
