@@ -105,8 +105,8 @@ if (BUENZLI_BUILD_TESTS AND BUILD_TESTING)
   bm_unit_test(difficulty_test
     test/unit/difficulty_test.cc)
 
-  bm_unit_test(hash_test
-    test/unit/crypto/hash_test.cc)
+  bm_unit_test(digest_test
+    test/unit/crypto/digest_test.cc)
 
   bm_unit_test(keypair_test
     test/unit/crypto/keypair_test.cc)

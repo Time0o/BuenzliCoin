@@ -12,42 +12,33 @@
 namespace bc
 {
 
-template<std::size_t DIGEST_LEN>
 class Digest
 {
 public:
-  using array = std::array<uint8_t, DIGEST_LEN>;
+  Digest() = default;
 
-  Digest()
-   : m_length { DIGEST_LEN }
-  {}
-
-  Digest(array arr)
-  : m_arr { std::move(arr) }
-  , m_length { DIGEST_LEN }
+  Digest(std::vector<uint8_t> vec)
+  : m_vec { std::move(vec) }
   {}
 
   bool operator==(Digest const &other) const
-  { return m_arr == other.m_arr; }
+  { return m_vec == other.m_vec; }
 
   uint8_t *data()
-  { return m_arr.data(); }
+  { return m_vec.data(); }
 
   uint8_t const *data() const
-  { return m_arr.data(); }
+  { return m_vec.data(); }
 
   std::size_t length() const
-  { return m_length; }
-
-  static constexpr std::size_t max_length()
-  { return DIGEST_LEN; }
+  { return m_vec.size(); }
 
   std::size_t zero_prefix_length() const
   {
     std::size_t count { 0 };
 
-    for (std::size_t i { 0 }; i < m_length; ++i) {
-      auto const &byte = m_arr[i];
+    for (std::size_t i { 0 }; i < m_vec.size(); ++i) {
+      auto const &byte = m_vec[i];
 
       uint8_t mask = 0x80;
       for (uint8_t mask { 0x80 }; mask; mask >>= 1) {
@@ -61,29 +52,20 @@ public:
     return count;
   }
 
-  void adjust_length(std::size_t new_length)
-  {
-    assert(new_length <= m_length);
-    m_length = new_length;
-  }
-
   std::string to_string() const
   {
     std::stringstream ss;
 
     ss << std::hex << std::setfill('0');
 
-    for (std::size_t i { 0 }; i < m_length; ++i)
-      ss << std::setw(2) << static_cast<int>(m_arr[i]);
+    for (std::size_t i { 0 }; i < m_vec.size(); ++i)
+      ss << std::setw(2) << static_cast<int>(m_vec[i]);
 
     return ss.str();
   }
 
   static Digest from_string(std::string const &str)
   {
-    if (str.size() > DIGEST_LEN * 2)
-      throw std::invalid_argument("invalid digest string");
-
     auto char_to_nibble = [](char c){
       if (c >= '0' && c <= '9')
         return c - '0';
@@ -97,20 +79,17 @@ public:
       throw std::invalid_argument("invalid digest string");
     };
 
-    array arr;
+    std::vector<uint8_t> vec;
     for (std::size_t i = 0; i < str.length() / 2; ++i)
-      arr[i] = (char_to_nibble(str[2 * i]) << 4) | char_to_nibble(str[2 * i + 1]);
+      vec.push_back((char_to_nibble(str[2 * i]) << 4) | char_to_nibble(str[2 * i + 1]));
 
-    Digest d { arr };
-
-    d.adjust_length(str.length() / 2);
+    Digest d { vec };
 
     return d;
   }
 
 private:
-  array m_arr;
-  std::size_t m_length;
+  std::vector<uint8_t> m_vec;
 };
 
 } // end namespace bc
@@ -118,10 +97,10 @@ private:
 namespace std
 {
 
-template<std::size_t DIGEST_LEN>
-struct hash<bc::Digest<DIGEST_LEN>>
+template<>
+struct hash<bc::Digest>
 {
-  std::size_t operator()(bc::Digest<DIGEST_LEN> const &d) const
+  std::size_t operator()(bc::Digest const &d) const
   {
     return hash<std::string>()(d.to_string());
   }

@@ -30,7 +30,6 @@ class Block
 
 public:
   using data_type = T;
-  using digest = HASHER::digest;
 
   explicit Block(T data)
   : m_data { std::move(data) },
@@ -61,7 +60,7 @@ public:
   uint64_t index() const
   { return m_index; }
 
-  digest hash() const
+  Digest hash() const
   { return m_hash; }
 
   std::pair<bool, std::string> valid() const
@@ -97,8 +96,6 @@ public:
   void adjust_difficulty(double difficulty)
   {
     auto difficulty_log2 { static_cast<std::size_t>(std::log2(difficulty)) };
-
-    assert(difficulty_log2 <= digest::max_length() * 8);
 
     for (;;) {
       m_timestamp = clock::now();
@@ -138,11 +135,11 @@ public:
     auto nonce { j["nonce"].get<std::size_t>() };
     auto index { j["index"].get<uint64_t>() };
 
-    auto hash { digest::from_string(j["hash"].get<std::string>()) };
+    auto hash { Digest::from_string(j["hash"].get<std::string>()) };
 
-    std::optional<digest> hash_prev;
+    std::optional<Digest> hash_prev;
     if (j.count("hash_prev"))
-        hash_prev = digest::from_string(j["hash_prev"].get<std::string>());
+        hash_prev = Digest::from_string(j["hash_prev"].get<std::string>());
 
     return Block {
       std::move(data),
@@ -159,8 +156,8 @@ private:
         clock::TimePoint timestamp,
         std::size_t nonce,
         uint64_t index,
-        digest hash,
-        std::optional<digest> hash_prev)
+        Digest hash,
+        std::optional<Digest> hash_prev)
   : m_data(std::move(data)),
     m_timestamp(timestamp),
     m_nonce(nonce),
@@ -169,7 +166,7 @@ private:
     m_hash_prev(std::move(hash_prev))
   {}
 
-  digest determine_hash() const
+  Digest determine_hash() const
   {
     std::stringstream ss;
 
@@ -189,8 +186,8 @@ private:
   std::size_t m_nonce;
   uint64_t m_index;
 
-  std::optional<digest> m_hash_prev;
-  digest m_hash;
+  std::optional<Digest> m_hash_prev;
+  Digest m_hash;
 };
 
 template<typename T, typename HASHER = SHA256Hasher>

@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <openssl/bio.h>
 #include <openssl/ec.h>
@@ -39,20 +40,17 @@ inline std::string build_key(std::string_view key_,
 
 } // end namespace detail
 
-template<typename IMPL, std::size_t HASH_DIGEST_LEN, std::size_t SIG_DIGEST_LEN>
+template<typename IMPL>
 class PrivateKey
 {
 public:
-  using hash_digest = Digest<HASH_DIGEST_LEN>;
-  using sig_digest = Digest<SIG_DIGEST_LEN>;
-
 protected:
   PrivateKey(std::string_view key)
   : m_key { detail::build_key(key, IMPL::header(), IMPL::footer()) }
   {}
 
 public:
-  sig_digest sign(hash_digest const &hash) const
+  Digest sign(Digest const &hash) const
   {
     auto key { IMPL::read_key(m_key) };
     if (!key)
@@ -61,8 +59,8 @@ public:
     EVP_PKEY_CTX *pkey_ctx { nullptr };
     EVP_PKEY *pkey { nullptr };
 
-    sig_digest sig;
-    auto sig_length { sig.length() };
+    uint8_t sig_data[100];
+    std::size_t sig_length;
 
     pkey = EVP_PKEY_new();
     if (!pkey)
@@ -78,15 +76,13 @@ public:
     if (EVP_PKEY_sign_init(pkey_ctx) != 1)
       goto error;
 
-    if (EVP_PKEY_sign(pkey_ctx, sig.data(), &sig_length, hash.data(), hash.length()) != 1)
+    if (EVP_PKEY_sign(pkey_ctx, sig_data, &sig_length, hash.data(), hash.length()) != 1)
       goto error;
-
-    sig.adjust_length(sig_length);
 
     EVP_PKEY_CTX_free(pkey_ctx);
     EVP_PKEY_free(pkey);
 
-    return sig;
+    return Digest { std::vector<uint8_t> { sig_data, sig_data + sig_length } };
 
   error:
     std::string error { ERR_error_string(ERR_get_error(), nullptr) };
@@ -104,20 +100,16 @@ private:
   std::string m_key;
 };
 
-template<typename IMPL, std::size_t HASH_DIGEST_LEN, std::size_t SIG_DIGEST_LEN>
+template<typename IMPL>
 class PublicKey
 {
-public:
-  using hash_digest = Digest<HASH_DIGEST_LEN>;
-  using sig_digest = Digest<SIG_DIGEST_LEN>;
-
 protected:
   PublicKey(std::string_view key)
   : m_key { detail::build_key(key, IMPL::header(), IMPL::footer()) }
   {}
 
 public:
-  bool verify(hash_digest const &hash, sig_digest const &sig) const
+  bool verify(Digest const &hash, Digest const &sig) const
   {
     auto key { IMPL::read_key(m_key) };
     if (!key)
@@ -182,12 +174,9 @@ struct KeyPair
 {
   using private_key = PRIVATE_KEY;
   using public_key = PUBLIC_KEY;
-
-  using hash_digest = PRIVATE_KEY::hash_digest;
-  using sig_digest = PRIVATE_KEY::sig_digest;
 };
 
-class ECSecp256k1PrivateKey : public PrivateKey<ECSecp256k1PrivateKey, 32, 72>
+class ECSecp256k1PrivateKey : public PrivateKey<ECSecp256k1PrivateKey>
 {
   friend class PrivateKey;
 
@@ -216,7 +205,7 @@ private:
   { return EVP_PKEY_assign_EC_KEY(parent_key, key); }
 };
 
-class ECSecp256k1PublicKey : public PublicKey<ECSecp256k1PublicKey, 32, 72>
+class ECSecp256k1PublicKey : public PublicKey<ECSecp256k1PublicKey>
 {
   friend class PublicKey;
 

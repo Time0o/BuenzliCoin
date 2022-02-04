@@ -6,6 +6,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string_view>
+#include <vector>
 
 #include <openssl/evp.h>
 #include <openssl/err.h>
@@ -15,19 +16,21 @@
 namespace bc
 {
 
-template<typename IMPL, std::size_t DIGEST_LEN>
+template<typename IMPL>
 class Hasher
 {
-public:
-  using digest = Digest<DIGEST_LEN>;
-
 protected:
   Hasher() = default;
 
 public:
-  digest hash(std::string_view msg) const
+  Digest hash(std::string_view msg) const
   {
-    auto mdctx { EVP_MD_CTX_new() };
+    EVP_MD_CTX *mdctx { nullptr };
+
+    uint8_t d_data[100];
+    unsigned d_length;
+
+    mdctx = EVP_MD_CTX_new();
     if (!(mdctx))
       throw std::bad_alloc {};
 
@@ -37,13 +40,12 @@ public:
     if (EVP_DigestUpdate(mdctx, msg.data(), msg.size()) != 1)
       goto error;
 
-    typename digest::array d;
-    if (EVP_DigestFinal_ex(mdctx, d.data(), nullptr) != 1)
+    if (EVP_DigestFinal_ex(mdctx, d_data, &d_length) != 1)
       goto error;
 
     EVP_MD_CTX_free(mdctx);
 
-    return digest { d };
+    return Digest { std::vector<uint8_t> { d_data, d_data + d_length } };
 
   error:
     if (mdctx)
@@ -61,13 +63,13 @@ private:
   }
 };
 
-class SHA256Hasher : public Hasher<SHA256Hasher, 32>
+class SHA256Hasher : public Hasher<SHA256Hasher>
 {
-  friend class Hasher<SHA256Hasher, 32>;
+  friend class Hasher<SHA256Hasher>;
 
 public:
   SHA256Hasher()
-  : Hasher<SHA256Hasher, 32>()
+  : Hasher<SHA256Hasher>()
   {}
 
   static SHA256Hasher const &instance()

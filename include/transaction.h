@@ -21,9 +21,9 @@ class Transaction
 {
   struct TxI // Transaction input.
   {
-    KEY_PAIR::hash_digest output_hash; // Hash of transaction containing TxO.
+    Digest output_hash; // Hash of transaction containing TxO.
     std::size_t output_index; // Index of TxO in transaction.
-    KEY_PAIR::sig_digest signature;
+    Digest signature;
 
     bool operator==(TxI const &other) const
     {
@@ -46,7 +46,7 @@ class Transaction
 
   struct UTxO // Unspent transaction output.
   {
-    KEY_PAIR::hash_digest output_hash; // Hash of transaction containing TxO.
+    Digest output_hash; // Hash of transaction containing TxO.
     std::size_t output_index; // Index of TxO in transaction.
     TxO output;
 
@@ -82,7 +82,7 @@ public:
   std::size_t index() const
   { return m_index; }
 
-  KEY_PAIR::hash_digest hash() const
+  Digest hash() const
   { return m_hash; }
 
   std::vector<input> const &inputs() const
@@ -115,7 +115,7 @@ public:
 private:
   Transaction(Type type,
               std::size_t index,
-              KEY_PAIR::hash_digest hash,
+              Digest hash,
               std::vector<TxI> inputs,
               std::vector<TxO> outputs)
   : m_type { type }
@@ -128,11 +128,11 @@ private:
   std::pair<bool, std::string> valid_standard() const;
   std::pair<bool, std::string> valid_reward() const;
 
-  KEY_PAIR::hash_digest determine_hash() const;
+  Digest determine_hash() const;
 
   Type m_type;
   std::size_t m_index;
-  KEY_PAIR::hash_digest m_hash;
+  Digest m_hash;
 
   std::vector<input> m_inputs;
   std::vector<output> m_outputs;

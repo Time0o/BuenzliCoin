@@ -30,8 +30,7 @@ TEST_CASE("keypair_test", "[crypto]")
     ECSecp256k1PrivateKey private_key2(ec_private_key2);
     ECSecp256k1PublicKey public_key2(ec_public_key2);
 
-    auto hash { ECSecp256k1PrivateKey::hash_digest::from_string(
-      "562d6ddfb3ceb5abb12d97bc35c4963d249f55b7c75eda618d365492ee98d469") };
+    auto hash { Digest::from_string("562d6ddfb3ceb5abb12d97bc35c4963d249f55b7c75eda618d365492ee98d469") };
 
     auto signature1 { private_key1.sign(hash) };
     CHECK(public_key1.verify(hash, signature1));

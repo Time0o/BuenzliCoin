@@ -32,9 +32,9 @@ template<typename KEY_PAIR, typename HASHER>
 Transaction<KEY_PAIR, HASHER>::TxI
 Transaction<KEY_PAIR, HASHER>::TxI::from_json(json const &j)
 {
-  auto output_hash { KEY_PAIR::hash_digest::from_string(json_get(j, "output_hash")) };
+  auto output_hash { Digest::from_string(json_get(j, "output_hash")) };
   auto output_index { json_get(j, "output_index").get<std::size_t>() };
-  auto signature { KEY_PAIR::sig_digest::from_string(json_get(j, "signature")) };
+  auto signature { Digest::from_string(json_get(j, "signature")) };
 
   return { output_hash, output_index, signature };
 }
@@ -147,7 +147,7 @@ Transaction<KEY_PAIR, HASHER>::from_json(json const &j)
 
   auto index { json_get(j, "index").get<std::size_t>() };
 
-  auto hash { KEY_PAIR::hash_digest::from_string(json_get(j, "hash")) };
+  auto hash { Digest::from_string(json_get(j, "hash")) };
 
   std::vector<input> inputs;
   for (auto const &j_txi : json_get(j, "inputs"))
@@ -234,7 +234,7 @@ Transaction<KEY_PAIR, HASHER>::valid_reward() const
 template std::pair<bool, std::string> Transaction<>::valid_reward() const;
 
 template<typename KEY_PAIR, typename HASHER>
-KEY_PAIR::hash_digest
+Digest
 Transaction<KEY_PAIR, HASHER>::determine_hash() const
 {
   std::stringstream ss;
@@ -252,7 +252,7 @@ Transaction<KEY_PAIR, HASHER>::determine_hash() const
   return HASHER::instance().hash(ss.str());
 }
 
-template ECSecp256k1KeyPair::hash_digest Transaction<>::determine_hash() const;
+template Digest Transaction<>::determine_hash() const;
 
 template<typename KEY_PAIR, typename HASHER>
 std::pair<bool, std::string>

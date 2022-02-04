@@ -71,7 +71,7 @@ PYBIND11_MODULE(bc, m)
     .def("sign",
          [](ECSecp256k1PrivateKey const &key, std::string const &hash_)
          {
-           auto hash { ECSecp256k1PublicKey::hash_digest::from_string(hash_) };
+           auto hash { Digest::from_string(hash_) };
 
            return key.sign(hash).to_string();
          });
@@ -83,8 +83,8 @@ PYBIND11_MODULE(bc, m)
             std::string const &hash_,
             std::string const &signature_)
          {
-           auto hash { ECSecp256k1PublicKey::hash_digest::from_string(hash_) };
-           auto signature { ECSecp256k1PublicKey::sig_digest::from_string(signature_) };
+           auto hash { Digest::from_string(hash_) };
+           auto signature { Digest::from_string(signature_) };
 
            return key.verify(hash, signature);
          });
