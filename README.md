@@ -70,3 +70,23 @@ a number of subcommands:
 In order to run `bwallet`, the `BUENZLI_NODE` environment variable must be set
 to the address/port under which a node is reachable, e.g.
 `BUENZLI_NODE=127.0.0.1:8333`.
+
+An example session might look like this (wallet addresses abbreviated for clarity):
+
+```
+>$ export BUENZLI_NODE=127.0.0.1:8333
+>$ bwallet create -name wal1                             # create first wallet
+>$ bwallet create -name wal2                             # create second wallet
+>$ bwallet list                                          # list wallet names and addresses
+wal1: MFk...CPA
+wal2: MFk...6wg
+>$ bwallet mine -to wal1                                 # mine a block and send the reward to wal1
+>$ bwallet balance -of wal1                              # determine balance of wal1
+50
+>$ bwallet transfer -from wal1 -to MFk...6wg -amount 25  # transfer 25 coins from wal1 to wal2
+>$ bwallet mine -to wal1                                 # mine another block
+>$ bwallet balance -of wal1
+75
+>$ bwallet balance -of wal2
+25
+```
