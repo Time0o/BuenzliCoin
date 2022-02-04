@@ -70,10 +70,3 @@ a number of subcommands:
 In order to run `bwallet`, the `BUENZLI_NODE` environment variable must be set
 to the address/port under which a node is reachable, e.g.
 `BUENZLI_NODE=127.0.0.1:8333`.
-
-## TODO
-
-* Fix signatures created by bwallet
-* Allow persisting blockchain to disk
-* Avoid propagating the complete blockchain every time several blocks are outdated
-* Update unspent transactions and transaction pool when replacing several blocks
