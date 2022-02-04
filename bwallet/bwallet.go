@@ -149,20 +149,18 @@ func findWallet(name string) (*wallet, error) {
 
 // Get a list of unspent transaction outputs for a specific wallet.
 func walletUnspentOutputs(w wallet) ([]transactionUnspentOutput, error) {
-	// Send request.
+	// Get unspent transactions.
 	resp, err := http.Get("http://" + buenzliNode + "/transactions/unspent")
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	// Read response.
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse response.
 	var unspentOutputs []transactionUnspentOutput
 
 	if err := json.Unmarshal(body, &unspentOutputs); err != nil {
@@ -325,10 +323,28 @@ func walletTransfer(from string, to string, amount int) error {
 		return err
 	}
 
+	// Get transactions stored in latest block.
+	resp, err := http.Get("http://" + buenzliNode + "/transactions/latest")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	var latestTransactions []transaction
+
+	if err := json.Unmarshal(body, &latestTransactions); err != nil {
+		return err
+	}
+
 	// Construct transaction.
 	trans := transaction{
 		Type:    "standard",
-		Index:   0, // XXX Correct next index (add endpoint).
+		Index:   latestTransactions[0].Index + 1,
 		Inputs:  []transactionInput{},
 		Outputs: []transactionOutput{}}
 
@@ -407,7 +423,7 @@ func walletTransfer(from string, to string, amount int) error {
 	// Post transaction.
 	transJson, _ := json.Marshal(trans)
 
-	resp, err := http.Post(
+	resp, err = http.Post(
 		"http://"+buenzliNode+"/transactions",
 		"application/json",
 		bytes.NewBuffer(transJson))

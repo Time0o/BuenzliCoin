@@ -268,7 +268,7 @@ TransactionList<KEY_PAIR, HASHER>::valid(std::size_t index) const
       return { false, fmt::format("transaction {}: invalid type", i) };
 
     if (t.index() != index)
-      return { false, fmt::format("transaction {}: invalid index {}", i) };
+      return { false, fmt::format("transaction {}: invalid index {}", i, t.index()) };
 
     auto [valid, error] = t.valid();
 
@@ -363,6 +363,9 @@ template<typename KEY_PAIR, typename HASHER>
 void
 TransactionUnconfirmedPool<KEY_PAIR, HASHER>::add(transaction const &t)
 {
+  if (m_transactions.size() == config().transaction_num_per_block)
+    throw std::runtime_error("transaction pool is already full");
+
   auto [valid, error] = t.valid();
 
   if (!valid)

@@ -90,6 +90,11 @@ void Node::http_setup()
                         [this](json const &)
                         { return handle_blocks_get(); });
 
+  m_http_server.support("/blocks/latest",
+                        HTTPServer::method::get,
+                        [this](json const &)
+                        { return handle_blocks_latest_get(); });
+
   m_http_server.support("/blocks",
                         HTTPServer::method::post,
                         [this](json const &data)
@@ -106,6 +111,11 @@ void Node::http_setup()
                         { return handle_peers_post(data); });
 
 #ifdef TRANSACTIONS
+  m_http_server.support("/transactions/latest",
+                        HTTPServer::method::get,
+                        [this](json const &data)
+                        { return handle_transactions_latest_get(data); });
+
   m_http_server.support("/transactions",
                         HTTPServer::method::post,
                         [this](json const &data)
@@ -128,6 +138,17 @@ std::pair<HTTPServer::status, json> Node::handle_blocks_get() const
   m_log.info("Running 'GET /blocks' handler");
 
   json answer = m_blockchain.to_json();
+
+  return { HTTPServer::status::ok, answer };
+}
+
+std::pair<HTTPServer::status, json> Node::handle_blocks_latest_get() const
+{
+  m_log.info("Running 'GET /blocks/latest' handler");
+
+  json answer;
+  if (!m_blockchain.empty())
+    answer = m_blockchain.latest_block().to_json();
 
   return { HTTPServer::status::ok, answer };
 }
@@ -231,6 +252,17 @@ std::pair<HTTPServer::status, json> Node::handle_peers_post(json const &data)
 }
 
 #ifdef TRANSACTIONS
+
+std::pair<HTTPServer::status, json> Node::handle_transactions_latest_get(json const &data)
+{
+  m_log.info("Running 'GET /transactions/latest' handler");
+
+  json answer;
+  if (!m_blockchain.empty())
+    answer = m_blockchain.latest_block().data().to_json();
+
+  return { HTTPServer::status::ok, answer };
+}
 
 std::pair<HTTPServer::status, json> Node::handle_transactions_post(json const &data)
 {
