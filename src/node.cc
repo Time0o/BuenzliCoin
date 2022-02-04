@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <fstream>
 #include <optional>
 #include <string>
 #include <thread>
@@ -23,14 +24,17 @@ Node::Node(std::string const &name,
            std::string const &websocket_addr,
            uint16_t websocket_port,
            std::string const &http_addr,
-           uint16_t http_port)
+           uint16_t http_port,
+           blockchain bc)
 : m_name { name },
   m_log { "[{}] [{}]", m_name, m_uuid.to_string(true) },
   m_websocket_server { websocket_addr, websocket_port },
-  m_http_server { http_addr, http_port }
+  m_http_server { http_addr, http_port },
+  m_blockchain { std::move(bc) }
 {
   websocket_setup();
   http_setup();
+  blockchain_setup();
 }
 
 void Node::run() const
@@ -100,6 +104,11 @@ void Node::http_setup()
                         [this](json const &data)
                         { return handle_blocks_post(data); });
 
+  m_http_server.support("/blocks/persist",
+                        HTTPServer::method::post,
+                        [this](json const &data)
+                        { return handle_blocks_persist_post(data); });
+
   m_http_server.support("/peers",
                         HTTPServer::method::get,
                         [this](json const &)
@@ -130,6 +139,16 @@ void Node::http_setup()
                         HTTPServer::method::get,
                         [this](json const &)
                         { return handle_transactions_unspent_get(); });
+#endif // TRANSACTIONS
+}
+
+void Node::blockchain_setup()
+{
+#ifdef TRANSACTIONS
+    for (auto const &block : m_blockchain.all_blocks()) {
+      for (auto const &transaction : block.data().get())
+        m_transaction_unspent_outputs.update(transaction);
+    }
 #endif // TRANSACTIONS
 }
 
@@ -211,6 +230,35 @@ std::pair<HTTPServer::status, json> Node::handle_blocks_post(json const &data)
   }
 
   detach(&Node::broadcast_latest_block);
+
+  return { HTTPServer::status::ok, {} };
+}
+
+std::pair<HTTPServer::status, json> Node::handle_blocks_persist_post(json const &data) const
+{
+  m_log.info("Running 'POST /blocks/persist' handler");
+
+  try {
+    auto file { data["file"].get<std::string>() };
+
+    std::ofstream f { file };
+    if (!f)
+      throw std::runtime_error("failed to open file");
+
+    f << m_blockchain.to_json().dump() << std::endl;
+    if (!f)
+      throw std::runtime_error("failed to write to file");
+
+    m_log.info("Persisted blockchain to {}", file);
+
+  } catch (std::exception const &e) {
+    std::string err {
+      "Malformed 'POST /blocks/persist' request: '" + data.dump() + "': " + e.what() };
+
+    m_log.error(err);
+
+    throw HTTPError { HTTPServer::status::bad_request, err };
+  }
 
   return { HTTPServer::status::ok, {} };
 }

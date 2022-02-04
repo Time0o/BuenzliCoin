@@ -20,6 +20,7 @@ namespace bc
 
 class Node
 {
+public:
 #ifdef TRANSACTIONS
   using transaction = Transaction<>;
   using transaction_list = TransactionList<>;
@@ -31,12 +32,12 @@ class Node
   using blockchain = Blockchain<Text>;
 #endif // TRANSACTION
 
-public:
   Node(std::string const &name,
        std::string const &websocket_addr,
        uint16_t websocket_port,
        std::string const &http_addr,
-       uint16_t http_port);
+       uint16_t http_port,
+       blockchain bc);
 
   void run() const;
   void stop() const;
@@ -44,10 +45,12 @@ public:
 private:
   void websocket_setup();
   void http_setup();
+  void blockchain_setup();
 
   std::pair<HTTPServer::status, json> handle_blocks_get() const;
   std::pair<HTTPServer::status, json> handle_blocks_latest_get() const;
   std::pair<HTTPServer::status, json> handle_blocks_post(json const &data);
+  std::pair<HTTPServer::status, json> handle_blocks_persist_post(json const &data) const;
   std::pair<HTTPServer::status, json> handle_peers_get() const;
   std::pair<HTTPServer::status, json> handle_peers_post(json const &data);
 #ifdef TRANSACTIONS
