@@ -122,8 +122,8 @@ void Node::http_setup()
 #ifdef TRANSACTIONS
   m_http_server.support("/transactions/latest",
                         HTTPServer::method::get,
-                        [this](json const &data)
-                        { return handle_transactions_latest_get(data); });
+                        [this](json const &)
+                        { return handle_transactions_latest_get(); });
 
   m_http_server.support("/transactions",
                         HTTPServer::method::post,
@@ -183,7 +183,7 @@ std::pair<HTTPServer::status, json> Node::handle_blocks_post(json const &data)
   try {
 #ifdef TRANSACTIONS
 
-    auto reward_address { data.get<std::string>() };
+    auto reward_address { data["address"].get<std::string>() };
 
     std::vector<transaction> ts_;
 
@@ -305,7 +305,7 @@ std::pair<HTTPServer::status, json> Node::handle_peers_post(json const &data)
 
 #ifdef TRANSACTIONS
 
-std::pair<HTTPServer::status, json> Node::handle_transactions_latest_get(json const &data)
+std::pair<HTTPServer::status, json> Node::handle_transactions_latest_get()
 {
   m_log.info("Running 'GET /transactions/latest' handler");
 
