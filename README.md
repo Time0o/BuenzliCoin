@@ -8,7 +8,7 @@ BuenzliCoin is a simple proof of work based blockchain/cryptocurrency written
 completely from scratch in C++. It is split into two programs, `bnode` which
 manages the blockchain and `bwallet` which is a command line tool that manages
 wallets and interacts with `bnode` via a REST interface in order to create
-transactions and mine blocks. Multiple `bnode` instance can also be linked
+transactions and mine blocks. Multiple `bnode` instances can also be linked
 together and will automatically exchange transactions and blocks via WebSocket
 channels, leading to distributed consensus.
 
@@ -28,7 +28,7 @@ from the root of this repository. This might take a while so grab a coffee too.
 
 To start a node just run `bnode` from your build directory.
 
-You can optionally set addresses and ports of the REST and websocket interfaces
+You can optionally set addresses and ports of the REST and WebSocket interfaces
 exposed by this node via the options:
 
 * `--http-host`
@@ -54,7 +54,7 @@ request to the node's `/peers` endpoint.
 
 ## Full `bnode` REST interface
 
-A running `bnode` instance can be fully controlled via a rest interface. The
+A running `bnode` instance can be fully controlled via a REST interface. The
 following endpoints exist:
 
 | Endpoint                    | Method | Purpose                            |
@@ -62,7 +62,7 @@ following endpoints exist:
 | `/blocks`                   | GET    | Query full blockchain              |
 | `/blocks/latest`            | GET    | Query latest block                 |
 | `/blocks`                   | POST   | Mine a new block                   |
-| `/blocks/persist`           | POST   | Perist blockchain                  |
+| `/blocks/persist`           | POST   | Persist blockchain                 |
 | `/peers`                    | GET    | Query peers                        |
 | `/peers`                    | POST   | Add new peer                       |
 | `/transactions/latest`      | GET    | Query transactions in latest block |
@@ -70,7 +70,7 @@ following endpoints exist:
 | `/transactions/unspent`     | GET    | Query unspent transaction outputs  |
 | `/transactions`             | POST   | Add a new transaction              |
 
-The post endpoints expect input parameters in the form of JSON dictionaries.
+The post endpoints expect input parameters in the form of JSON dictionaries:
 
 * `POST /blocks`:
 
@@ -133,11 +133,10 @@ transactions by adding them to the blockchain.
 
 ## Using `bwallet`
 
-Although all necessary functionality for managing transactions is also
-available via a rest interface, it is more convenient to use to `bwallet`
-program to do so when creating querying balances or creating transactions.
-This program can additionally manage wallets on your local system. `bwallet`
-has a number of subcommands:
+It is more convenient to use the `bwallet` program instead of the REST
+interface when querying balances or creating transactions.  This program can
+additionally manage wallets on your local system. `bwallet` has a number of
+subcommands:
 
 * `bwallet list`: List avaiable wallets.
 * `bwallet create -name NAME`: Create a new wallet.
